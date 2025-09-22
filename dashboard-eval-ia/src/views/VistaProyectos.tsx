@@ -11,6 +11,7 @@ import BotonProyectos from "./BotonProyectos";
 import BotonServidores from "./BotonServidores";
 import BotonTareas from "./BotonTareas";
 import BotonCalendario from "./BotonCalendario";
+import BotonTimeline from "./BotonTimeline"; // ✨ NUEVO: Timeline component
 import BotonDashboardNotas from "./BotonDashboardNotas";
 import { Task } from "../services/taskService"; // ✨ Import necesario para la integración
 
@@ -22,6 +23,7 @@ const VistaProyectos: React.FC = () => {
     | "server"
     | "task"
     | "calendar"
+    | "timeline"  // ✨ NUEVA OPCIÓN: Timeline
     | "dashboard"
     | null
   >("project");
@@ -129,12 +131,20 @@ const VistaProyectos: React.FC = () => {
                 activeColor="bg-green-500 ring-green-200"
               />
               <NavButton 
-                category="dashboard"
+                category="timeline"
                 icon={ChartBarIcon}
-                label="Dashboard"
+                label="Timeline"
                 color="bg-blue-400"
                 hoverColor="bg-blue-500"
                 activeColor="bg-blue-500 ring-blue-200"
+              />
+              <NavButton 
+                category="dashboard"
+                icon={ChartBarIcon}
+                label="Dashboard"
+                color="bg-indigo-400"
+                hoverColor="bg-indigo-500"
+                activeColor="bg-indigo-500 ring-indigo-200"
               />
             </div>
           </div>
@@ -188,6 +198,17 @@ const VistaProyectos: React.FC = () => {
                 onlyContent={true}
                 highlightedTask={calendarTask} // ✨ CLAVE: Tarea a destacar
                 onTaskDeselected={handleClearHighlightedTask} // ✨ CLAVE: Limpiar destacado
+              />
+            </div>
+          )}
+
+          {activeCategory === "timeline" && (
+            <div className="p-6">
+              <BotonTimeline
+                isActive={true}
+                onClick={() => handleCategoryChange("timeline")}
+                onToastMessage={setToastMessage}
+                onlyContent={true}
               />
             </div>
           )}
