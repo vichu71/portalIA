@@ -15,4 +15,4 @@ fi
 # Añadir cambios, hacer commit y push
 git add .
 git commit -m "$COMMIT_MSG"
-git push origin staging
+git push origin main
