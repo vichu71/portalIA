@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="Content-Security-Policy"
+    content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'">
+  <title>Dev Projects Launcher</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+
+<body>
+  <div class="container">
+    <h1>Dev Projects Launcher</h1>
+
+    <div class="projects-container">
+      <div class="projects-sidebar">
+        <div class="sidebar-header">
+          <h3>Proyectos</h3>
+          <button id="addProjectBtn" class="btn-icon" title="Añadir proyecto">+</button>
+        </div>
+        <div id="projectsList" class="projects-list"></div>
+      </div>
+
+      <div class="project-panel">
+        <div id="projectContent" class="project-content">
+          <div class="welcome-message">
+            <h2>Bienvenido</h2>
+            <p>Selecciona un proyecto de la lista para comenzar</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal para añadir/editar proyecto -->
+  <div id="projectModal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2 id="modalTitle">Nuevo Proyecto</h2>
+        <button class="close-btn" onclick="closeProjectModal()">&times;</button>
+      </div>
+      <form id="projectForm">
+        <div class="form-group">
+          <label>Nombre del proyecto:</label>
+          <input type="text" id="projectName" required>
+        </div>
+
+        <div class="form-group">
+          <label>Descripción:</label>
+          <input type="text" id="projectDescription">
+        </div>
+
+        <div class="form-group">
+          <label>Icono (emoji):</label>
+          <input type="text" id="projectIcon" value="📁" maxlength="2">
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" onclick="closeProjectModal()">Cancelar</button>
+          <button type="submit" class="btn btn-primary">Guardar</button>
+          <button type="button" id="deleteBtn" class="btn btn-danger" style="display:none">Eliminar Proyecto</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Template para proyecto -->
+  <template id="projectTemplate">
+    <div class="project-detail">
+      <div class="project-header">
+        <div class="project-title-row">
+          <h2><span class="project-icon"></span> <span class="project-name"></span></h2>
+          <button class="btn-icon edit-btn" title="Editar proyecto">✏️</button>
+        </div>
+        <p class="project-description"></p>
+      </div>
+
+      <div class="controls">
+        <button class="btn btn-primary start-all-btn">Iniciar Todos</button>
+        <button class="btn btn-danger stop-all-btn" disabled>Detener Todos</button>
+      </div>
+      <div class="port-stop-tool">
+  <label for="portSelect">Detener por puerto:</label>
+  <input type="number" id="portSelectInput" list="portOptions" placeholder="Introduce o selecciona puerto">
+  <datalist id="portOptions">
+    <!-- Opciones se insertarán dinámicamente -->
+  </datalist>
+  <button id="stopPortBtn">Detener puerto</button>
+</div>
+
+
+      <div class="services-status-grid"></div>
+
+      <div class="console-container">
+        <div class="console-header">
+          <h3>Consola de salida</h3>
+          <div class="console-controls">
+            <label style="margin-right: 10px;">
+              <input type="checkbox" id="autoScrollCheckbox" checked>
+              Scroll automático
+            </label>
+            <button class="btn-small clear-console">🗑️Limpiar</button>
+          </div>
+          <select class="console-filter">
+            <option value="all">Todos los servicios</option>
+          </select>
+        </div>
+        <div class="console-output"></div>
+      </div>
+
+    </div>
+  </template>
+
+  <!-- Modal para añadir/editar servicio -->
+  <div id="serviceModal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2>Nuevo Servicio</h2>
+        <button class="close-btn" id="closeServiceModalBtn">&times;</button>
+      </div>
+      <form id="serviceForm">
+        <div class="form-group">
+          <label>Nombre del servicio:</label>
+          <input type="text" id="serviceName" required>
+        </div>
+        <div class="form-group">
+          <label>Tipo:</label>
+          <select id="serviceType">
+            <option value="backend">Backend</option>
+            <option value="frontend">Frontend</option>
+            <option value="database">Base de datos</option>
+            <option value="builder">Question Builder</option> <!-- 🆕 -->
+            <option value="answer">Question Answer</option> <!-- 🆕 -->
+            <option value="other">Otro</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label>Puerto:</label>
+          <input type="number" id="servicePort" placeholder="8080">
+        </div>
+
+        <div class="form-group">
+          <label>Orden de arranque:</label>
+          <input type="number" id="serviceOrder" value="1" min="1">
+        </div>
+
+        <div class="form-group">
+          <label>URL (opcional):</label>
+          <input type="text" id="serviceUrl" placeholder="http://localhost:8080">
+        </div>
+
+        <div class="form-group">
+          <label>Palabras clave listo (separadas por coma):</label>
+          <input type="text" id="serviceReadyKeywords" placeholder="Started, running on port">
+        </div>
+
+        <div class="form-group">
+          <label>Ruta de trabajo (cwd):</label>
+          <input type="text" id="serviceCwd" placeholder="C:/ruta/del/proyecto">
+        </div>
+
+        <div class="form-group">
+          <label>Comando para arrancar (script):</label>
+          <input type="text" id="serviceScript" placeholder="npm run serve , node bin/www, gradlew bootRun....">
+        </div>
+
+        <div class="modal-footer">
+          <input type="hidden" id="serviceId">
+
+          <button type="button" class="btn btn-secondary" id="cancelServiceModalBtn">Cancelar</button>
+          <button type="submit" class="btn btn-primary">Guardar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+
+  <script src="renderer.js"></script>
+</body>
+
+</html>

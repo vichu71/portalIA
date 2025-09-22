@@ -1,0 +1,248 @@
+{
+  "projects": [
+    {
+      "id": "portal-ia",
+      "name": "Portal IA",
+      "description": "Sistema de evaluación de modelos IA",
+      "icon": "🤖",
+      "services": [
+        {
+          "id": "mb81dvg4mph3gf4qkl",
+          "name": "PortalIA-Backend",
+          "type": "backend",
+          "cwd": "D:\\portalIA\\model-evaluator-api",
+          "script": "C:/apache-maven-3.8.3/bin/mvn.cmd spring-boot:run",
+          "port": 8081,
+          "order": 1,
+          "url": null,
+          "readyKeywords": [
+            "tomcat initialized with port",
+            "starting service [tomcat]"
+          ],
+          "running": false,
+          "ready": false
+        },
+        {
+          "id": "mb8zz2oy98n500h9ixa",
+          "name": "PortalIA-frontend",
+          "type": "frontend",
+          "cwd": "D:\\portalIA\\dashboard-eval-ia",
+          "script": "npm start",
+          "port": 3001,
+          "order": 2,
+          "url": "http://localhost:3001",
+          "readyKeywords": [
+            "compiled successfully!",
+            "webpack compiled successfully"
+          ],
+          "running": false,
+          "ready": false
+        }
+      ],
+      "lastStartedAt": "2025-09-19T06:53:42.003Z"
+    },
+    {
+      "id": "fapscl",
+      "name": "Fapscl",
+      "description": "asociacion sordos cyl",
+      "icon": "👐",
+      "services": [
+        {
+          "id": "mb908u21w2j6ki2k0mm",
+          "name": "Fapscl-backend",
+          "type": "backend",
+          "cwd": "C:\\Users\\vmhuecas\\fapscl\\fapscl-backend",
+          "script": "gradlew bootRun",
+          "port": 8082,
+          "order": 1,
+          "url": null,
+          "readyKeywords": [
+            "Started",
+            "port 8082"
+          ],
+          "running": false,
+          "ready": false
+        },
+        {
+          "id": "mb90bygsoqjpcgx5w3",
+          "name": "Fapscl-web",
+          "type": "frontend",
+          "cwd": "C:\\Users\\vmhuecas\\fapscl\\fapscl-web",
+          "script": "flutter run -d edge --dart-define=API_URL=http://localhost:8082/backend --dart-define=BUILDER_URL=http://localhost:8100",
+          "port": null,
+          "order": 2,
+          "url": null,
+          "readyKeywords": [
+            "This app is linked",
+            "Debug service listening on"
+          ],
+          "running": null,
+          "ready": null
+        },
+        {
+          "id": "mb90hjbejvg6y5b0x2",
+          "name": "Fapscl-node",
+          "type": "other",
+          "cwd": "C:\\Users\\vmhuecas\\fapscl\\fapscl-node",
+          "script": "node bin/www",
+          "port": 3000,
+          "order": 3,
+          "url": null,
+          "readyKeywords": [
+            "Servidor corriendo en http://localhost:3000"
+          ],
+          "running": false,
+          "ready": false
+        }
+      ],
+      "lastStartedAt": "2025-07-31T07:34:10.860Z"
+    },
+    {
+      "id": "question",
+      "name": "Question",
+      "description": "Aplicacion de generacion de encuestas. Compuesto de 4 modulos para su funcionamiento",
+      "icon": "📋",
+      "services": [
+        {
+          "id": "mb91bazo1tm7k3ddab7",
+          "name": "Question-backend",
+          "type": "backend",
+          "cwd": "C:\\Users\\vmhuecas\\question\\question-backend",
+          "script": "gradlew bootRun",
+          "port": 8080,
+          "order": 1,
+          "url": null,
+          "readyKeywords": [
+            "Started",
+            "port 8080"
+          ],
+          "running": true,
+          "ready": true
+        },
+        {
+          "id": "mb91dx5vim4kzul4eih",
+          "name": "Question-backoffice",
+          "type": "frontend",
+          "cwd": "C:\\Users\\vmhuecas\\question\\question-backoffice",
+          "script": "flutter run -d edge --dart-define=API_URL=http://localhost:8080 --dart-define=BUILDER_URL=http://localhost:8100 --dart-define=RUNNER_URL=http://localhost:8101/backoffice",
+          "port": null,
+          "order": 2,
+          "url": null,
+          "readyKeywords": [
+            "compiled successfully!",
+            "webpack compiled successfully",
+            "http://localhost:8080"
+          ],
+          "running": null,
+          "ready": null
+        },
+        {
+          "id": "mb91fuhfk770d785kld",
+          "name": "Question-builder",
+          "type": "builder",
+          "cwd": "C:\\Users\\vmhuecas\\question\\question-builder",
+          "script": "npm run serve",
+          "port": 8100,
+          "order": 3,
+          "url": null,
+          "readyKeywords": [
+            "App running at:",
+            "To create a production build"
+          ],
+          "running": false,
+          "ready": false
+        },
+        {
+          "id": "mb92pgi38mqbieo3lk3",
+          "name": "Question-answer",
+          "type": "answer",
+          "cwd": "C:\\Users\\vmhuecas\\question\\question-answer",
+          "script": "npm run serve",
+          "port": 8101,
+          "order": 4,
+          "url": null,
+          "readyKeywords": [
+            "App running at:",
+            "To create a production build"
+          ],
+          "running": false,
+          "ready": false
+        }
+      ],
+      "lastStartedAt": "2025-08-22T09:17:31.268Z"
+    },
+    {
+      "id": "mbequnw59s2tapa84s6",
+      "name": "Visercom",
+      "description": "Proyecto encargado de activar las salas del OPENVIDU",
+      "icon": "📺",
+      "services": [
+        {
+          "id": "mbeqxnjk6wodwsuy6tv",
+          "name": "Visercom-backend",
+          "type": "backend",
+          "cwd": "C:\\Users\\vmhuecas\\visercomcfg\\visercomcfg-backend",
+          "script": "C:/apache-maven-3.8.3/bin/mvn.cmd spring-boot:run",
+          "port": 8080,
+          "order": 1,
+          "url": null,
+          "readyKeywords": [
+            "tomcat initialized with port",
+            "starting service [tomcat]"
+          ],
+          "running": true,
+          "ready": true
+        },
+        {
+          "id": "mber5meq57cdic7tkjx",
+          "name": "visercom-web",
+          "type": "frontend",
+          "cwd": "C:\\Users\\vmhuecas\\visercomcfg\\visercomcfg-web",
+          "script": "flutter run -d edge --dart-define=API_URL=http://localhost:8080/backend",
+          "port": null,
+          "order": 2,
+          "url": null,
+          "readyKeywords": [
+            "This app is linked",
+            "Debug service listening on"
+          ],
+          "running": null,
+          "ready": null
+        }
+      ],
+      "lastStartedAt": "2025-06-04T07:50:13.176Z"
+    },
+    {
+      "id": "mberdr0qm8si8xm45c",
+      "name": "Sercomcfg",
+      "description": "Proyecto para la configuracion de sercom",
+      "icon": "🎧",
+      "services": [
+        {
+          "id": "mbergfitejnf7gcetbj",
+          "name": "Sercomcfg",
+          "type": "backend",
+          "cwd": "C:\\Users\\vmhuecas\\git\\sercomcfg",
+          "script": "C:/apache-maven-3.8.3/bin/mvn.cmd spring-boot:run",
+          "port": 9080,
+          "order": 1,
+          "url": "http://localhost:9080/cfg",
+          "readyKeywords": [
+            "tomcat initialized with port",
+            "starting service [tomcat]"
+          ],
+          "running": true,
+          "ready": true
+        }
+      ],
+      "lastStartedAt": "2025-06-04T07:55:20.262Z"
+    },
+    {
+      "id": "mbhnme8ejg3d9u08pg",
+      "name": "openvidu",
+      "description": "sdfsdf",
+      "icon": "📁",
+      "services": []
+    }
+  ]
+}

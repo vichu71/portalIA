@@ -1,0 +1,27 @@
+# Eclipse/IDE
+.metadata/
+.classpath
+.project
+.settings/
+
+# Java backend
+target/
+*.log
+
+# Node/Frontend
+node_modules/
+dist/
+build/
+
+# Python (si usas IA_question)
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.venv/
+.env
+*.log
+
+# General
+.DS_Store
+Thumbs.db
