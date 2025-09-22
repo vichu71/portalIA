@@ -17,21 +17,25 @@ interface BotonTareasProps {
   isActive: boolean;
   onClick: () => void;
   onToastMessage: (message: string) => void;
-  onlyContent?: boolean; // Nueva prop para renderizar solo contenido
+  onlyContent?: boolean;
+  onOpenCalendar?: (task: Task) => void; // Nueva prop para comunicación con calendario
 }
 
 const BotonTareas: React.FC<BotonTareasProps> = ({
   isActive,
   onClick,
   onToastMessage,
-  onlyContent = false, // Valor por defecto
+  onlyContent = false,
+  onOpenCalendar, // Nueva prop
 }) => {
+  
+  
   // Estados locales
   const [tasks, setTasks] = useState<Task[]>([]);
   const [proyectos, setProyectos] = useState<Project[]>([]);
   const [busquedaTarea, setBusquedaTarea] = useState("");
-  const [filtroProyecto, setFiltroProyecto] = useState<string>(""); // Nuevo estado para filtro de proyecto
-  const [filtroPrioridad, setFiltroPrioridad] = useState<string>(""); // Nuevo estado para filtro de prioridad
+  const [filtroProyecto, setFiltroProyecto] = useState<string>("");
+  const [filtroPrioridad, setFiltroPrioridad] = useState<string>("");
   const [selectedTaskId, setSelectedTaskId] = useState<number | null>(null);
   const [editingTaskId, setEditingTaskId] = useState<number | null>(null);
   const [selectedTaskForDetails, setSelectedTaskForDetails] = useState<Task | null>(null);
@@ -46,7 +50,7 @@ const BotonTareas: React.FC<BotonTareasProps> = ({
   useEffect(() => {
     if (isActive) {
       loadTasks(busquedaTarea);
-      loadProjects(); // Necesario para getProjectName
+      loadProjects();
     }
   }, [isActive, busquedaTarea]);
 
@@ -66,15 +70,12 @@ const BotonTareas: React.FC<BotonTareasProps> = ({
   // Función para aplicar todos los filtros
   const applyFilters = (tasksToFilter: Task[]) => {
     return tasksToFilter.filter(task => {
-      // Filtro por texto
       const matchesText = task.title.toLowerCase().includes(busquedaTarea.toLowerCase()) ||
                           task.description?.toLowerCase().includes(busquedaTarea.toLowerCase());
       
-      // Filtro por proyecto
       const matchesProject = filtroProyecto === "" || 
                             (filtroProyecto === "sin-proyecto" ? !task.projectId : task.projectId?.toString() === filtroProyecto);
       
-      // Filtro por prioridad
       const matchesPriority = filtroPrioridad === "" || task.priority === filtroPrioridad;
       
       return matchesText && matchesProject && matchesPriority;
@@ -114,7 +115,6 @@ const BotonTareas: React.FC<BotonTareasProps> = ({
     }
   };
 
-  // Función para obtener el color de prioridad para círculos
   const getPrioritySelectColor = (priority: string) => {
     switch (priority) {
       case "alta":
@@ -128,7 +128,6 @@ const BotonTareas: React.FC<BotonTareasProps> = ({
     }
   };
 
-  // Función para obtener el emoji de prioridad
   const getPriorityEmoji = (priority: string) => {
     switch (priority) {
       case "alta":
@@ -142,7 +141,6 @@ const BotonTareas: React.FC<BotonTareasProps> = ({
     }
   };
 
-  // Función para generar color único por proyecto
   const getProjectColor = (projectName: string) => {
     if (!projectName) return "bg-gray-400";
     
@@ -152,7 +150,6 @@ const BotonTareas: React.FC<BotonTareasProps> = ({
       "bg-orange-500", "bg-cyan-500", "bg-lime-500", "bg-amber-500"
     ];
     
-    // Simple hash function para asignar color consistente
     let hash = 0;
     for (let i = 0; i < projectName.length; i++) {
       hash = projectName.charCodeAt(i) + ((hash << 5) - hash);
@@ -160,7 +157,6 @@ const BotonTareas: React.FC<BotonTareasProps> = ({
     return colors[Math.abs(hash) % colors.length];
   };
 
-  // Función para limpiar todos los filtros
   const clearFilters = () => {
     setBusquedaTarea("");
     setFiltroProyecto("");
@@ -229,12 +225,10 @@ const BotonTareas: React.FC<BotonTareasProps> = ({
     }
 
     try {
-      // Actualizar en la API primero
       const updatedTask = await updateTask(draggedTask.id, { 
         status: newStatus as "pendiente" | "en_progreso" | "completada"
       });
       
-      // Si la API responde correctamente, actualizar la lista local
       setTasks(prevTasks => 
         prevTasks.map(task => 
           task.id === draggedTask.id ? updatedTask : task
@@ -249,8 +243,6 @@ const BotonTareas: React.FC<BotonTareasProps> = ({
     } catch (error) {
       console.error('Error actualizando estado de tarea:', error);
       onToastMessage('Error al mover la tarea. Por favor, inténtalo de nuevo.');
-      
-      // Opcional: recargar tareas desde el servidor en caso de error
       loadTasks(busquedaTarea);
     } finally {
       setDraggedTask(null);
@@ -261,7 +253,6 @@ const BotonTareas: React.FC<BotonTareasProps> = ({
   const FiltersSection = () => (
     <div className="bg-gradient-to-br from-white to-gray-50 p-6 rounded-2xl shadow-md border-2 border-gray-100 mb-6">
       <div className="flex flex-col gap-4">
-        {/* Primera fila: Búsqueda por texto */}
         <div className="flex items-center gap-4">
           <Filter className="w-6 h-6 text-purple-500" />
           <div className="flex-1">
@@ -275,171 +266,158 @@ const BotonTareas: React.FC<BotonTareasProps> = ({
           </div>
         </div>
 
-        {/* Segunda fila: Filtros por combos */}
-        {/* Segunda fila: Filtros por combos + botón alineado */}
-<div className="grid grid-cols-1 lg:grid-cols-3 lg:grid-rows-2 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-3 lg:grid-rows-2 gap-6">
+          <div className="lg:row-start-1 lg:col-start-1">
+            <label className="block text-sm font-bold text-gray-800 mb-2 tracking-wide">
+              📁 PROYECTO
+            </label>
+            <div className="relative">
+              <div className="flex items-center gap-3 mb-3">
+                <div
+                  className={`w-4 h-4 rounded-full ${
+                    filtroProyecto === "" ? "bg-purple-400" :
+                    filtroProyecto === "sin-proyecto" ? "bg-gray-400" :
+                    getProjectColor(proyectos.find(p => p.id.toString() === filtroProyecto)?.name || "")
+                  } border-2 border-white shadow-md`}
+                ></div>
+                <span className="text-sm font-medium text-gray-700">
+                  {filtroProyecto === "" ? "Todos los proyectos" :
+                  filtroProyecto === "sin-proyecto" ? "Sin proyecto asignado" :
+                  proyectos.find(p => p.id.toString() === filtroProyecto)?.name || "Proyecto desconocido"}
+                </span>
+              </div>
 
-  {/* PROYECTO (fila 1, col 1) */}
-  <div className="lg:row-start-1 lg:col-start-1">
-    <label className="block text-sm font-bold text-gray-800 mb-2 tracking-wide">
-      📁 PROYECTO
-    </label>
-    <div className="relative">
-      {/* Indicador visual */}
-      <div className="flex items-center gap-3 mb-3">
-        <div
-          className={`w-4 h-4 rounded-full ${
-            filtroProyecto === "" ? "bg-purple-400" :
-            filtroProyecto === "sin-proyecto" ? "bg-gray-400" :
-            getProjectColor(proyectos.find(p => p.id.toString() === filtroProyecto)?.name || "")
-          } border-2 border-white shadow-md`}
-        ></div>
-        <span className="text-sm font-medium text-gray-700">
-          {filtroProyecto === "" ? "Todos los proyectos" :
-          filtroProyecto === "sin-proyecto" ? "Sin proyecto asignado" :
-          proyectos.find(p => p.id.toString() === filtroProyecto)?.name || "Proyecto desconocido"}
-        </span>
-      </div>
+              <select
+                value={filtroProyecto}
+                onChange={(e) => setFiltroProyecto(e.target.value)}
+                className="w-full h-[48px] p-3 pl-12 border-2 border-gray-200 rounded-xl shadow-sm focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all duration-200 font-medium bg-gradient-to-r from-white to-gray-50 appearance-none cursor-pointer"
+                style={{
+                  backgroundImage: `url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236B7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e")`,
+                  backgroundPosition: 'right 12px center',
+                  backgroundRepeat: 'no-repeat',
+                  backgroundSize: '16px'
+                }}
+              >
+                <option value="">🔄 Todos los proyectos</option>
+                <option value="sin-proyecto">❌ Sin proyecto asignado</option>
+                {proyectos.map((proyecto) => (
+                  <option key={proyecto.id} value={proyecto.id.toString()}>
+                    📂 {proyecto.name}
+                  </option>
+                ))}
+              </select>
 
-      <select
-        value={filtroProyecto}
-        onChange={(e) => setFiltroProyecto(e.target.value)}
-        className="w-full h-[48px] p-3 pl-12 border-2 border-gray-200 rounded-xl shadow-sm focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all duration-200 font-medium bg-gradient-to-r from-white to-gray-50 appearance-none cursor-pointer"
-        style={{
-          backgroundImage: `url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236B7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e")`,
-          backgroundPosition: 'right 12px center',
-          backgroundRepeat: 'no-repeat',
-          backgroundSize: '16px'
-        }}
-      >
-        <option value="">🔄 Todos los proyectos</option>
-        <option value="sin-proyecto">❌ Sin proyecto asignado</option>
-        {proyectos.map((proyecto) => (
-          <option key={proyecto.id} value={proyecto.id.toString()}>
-            📂 {proyecto.name}
-          </option>
-        ))}
-      </select>
-
-      {/* Icono carpeta */}
-      <div className="absolute left-4 top-[52px] -translate-y-1/2 pointer-events-none">
-        <span className="text-gray-400 text-lg">📁</span>
-      </div>
-    </div>
-  </div>
-
-  {/* PRIORIDAD (fila 1, col 2) */}
-  <div className="lg:row-start-1 lg:col-start-2">
-    <label className="block text-sm font-bold text-gray-800 mb-2 tracking-wide">
-      🎯 PRIORIDAD
-    </label>
-    <div className="relative">
-      <div className="flex items-center gap-3 mb-3">
-        <div className={`w-4 h-4 rounded-full ${getPrioritySelectColor(filtroPrioridad)} border-2 border-white shadow-md flex items-center justify-center`}>
-          <span className="text-xs">{getPriorityEmoji(filtroPrioridad)}</span>
-        </div>
-        <span className="text-sm font-medium text-gray-700">
-          {filtroPrioridad === "" ? "Todas las prioridades" :
-          filtroPrioridad === "alta" ? "Prioridad Alta" :
-          filtroPrioridad === "media" ? "Prioridad Media" :
-          filtroPrioridad === "baja" ? "Prioridad Baja" : "Todas las prioridades"}
-        </span>
-      </div>
-
-      <select
-        value={filtroPrioridad}
-        onChange={(e) => setFiltroPrioridad(e.target.value)}
-        className="w-full h-[48px] p-3 pl-12 border-2 border-gray-200 rounded-xl shadow-sm focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all duration-200 font-medium bg-gradient-to-r from-white to-gray-50 appearance-none cursor-pointer"
-        style={{
-          backgroundImage: `url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236B7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e")`,
-          backgroundPosition: 'right 12px center',
-          backgroundRepeat: 'no-repeat',
-          backgroundSize: '16px'
-        }}
-      >
-        <option value="">🔄 Todas las prioridades</option>
-        <option value="alta">🔴 Prioridad Alta</option>
-        <option value="media">🟡 Prioridad Media</option>
-        <option value="baja">🟢 Prioridad Baja</option>
-      </select>
-
-      {/* Icono diana */}
-      <div className="absolute left-4 top-[52px] -translate-y-1/2 pointer-events-none">
-        <span className="text-gray-400 text-lg">🎯</span>
-      </div>
-    </div>
-  </div>
-
-  {/* ACCIÓN (fila 1, col 3) → botón alineado con los selects */}
-  <div className="lg:row-start-1 lg:col-start-3 lg:self-end">
-    <button
-      onClick={clearFilters}
-      className="w-full lg:w-auto px-6 py-3 h-[48px] bg-gradient-to-r from-gray-100 to-gray-200 hover:from-gray-200 hover:to-gray-300 text-gray-800 font-bold rounded-xl border-2 border-gray-300 transition-all duration-200 hover:scale-105 hover:shadow-md flex items-center justify-center gap-2"
-      title="Limpiar todos los filtros"
-    >
-      <span className="text-lg">🧹</span>
-      <span className="text-sm tracking-wide">LIMPIAR</span>
-    </button>
-  </div>
-
-  {/* PREVIEWS (fila 2) — ya no afectan a la alineación del botón */}
-  <div className="lg:row-start-2 lg:col-start-1">
-    {proyectos.length > 0 && (
-      <div className="mt-1 flex flex-wrap gap-2">
-        {proyectos.slice(0, 6).map((proyecto) => (
-          <div key={`preview-${proyecto.id}`} className="flex items-center gap-1 text-xs text-gray-600">
-            <div className={`w-2 h-2 rounded-full ${getProjectColor(proyecto.name)}`}></div>
-            <span className="truncate max-w-20">{proyecto.name}</span>
+              <div className="absolute left-4 top-[52px] -translate-y-1/2 pointer-events-none">
+                <span className="text-gray-400 text-lg">📁</span>
+              </div>
+            </div>
           </div>
-        ))}
-        {proyectos.length > 6 && (
-          <div className="text-xs text-gray-500">+{proyectos.length - 6} más...</div>
-        )}
-      </div>
-    )}
-  </div>
 
-  <div className="lg:row-start-2 lg:col-start-2">
-    <div className="mt-1 flex flex-wrap gap-3">
-      <div className="flex items-center gap-1 text-xs text-gray-600">
-        <div className="w-2 h-2 rounded-full bg-purple-400 flex items-center justify-center">
-          <span style={{ fontSize: '6px' }}>🔄</span>
-        </div>
-        <span>Todas</span>
-      </div>
-      <div className="flex items-center gap-1 text-xs text-gray-600">
-        <div className="w-2 h-2 rounded-full bg-red-500 flex items-center justify-center">
-          <span style={{ fontSize: '6px' }}>🔴</span>
-        </div>
-        <span>Alta</span>
-      </div>
-      <div className="flex items-center gap-1 text-xs text-gray-600">
-        <div className="w-2 h-2 rounded-full bg-yellow-500 flex items-center justify-center">
-          <span style={{ fontSize: '6px' }}>🟡</span>
-        </div>
-        <span>Media</span>
-      </div>
-      <div className="flex items-center gap-1 text-xs text-gray-600">
-        <div className="w-2 h-2 rounded-full bg-green-500 flex items-center justify-center">
-          <span style={{ fontSize: '6px' }}>🟢</span>
-        </div>
-        <span>Baja</span>
-      </div>
-    </div>
-  </div>
+          <div className="lg:row-start-1 lg:col-start-2">
+            <label className="block text-sm font-bold text-gray-800 mb-2 tracking-wide">
+              🎯 PRIORIDAD
+            </label>
+            <div className="relative">
+              <div className="flex items-center gap-3 mb-3">
+                <div className={`w-4 h-4 rounded-full ${getPrioritySelectColor(filtroPrioridad)} border-2 border-white shadow-md flex items-center justify-center`}>
+                  <span className="text-xs">{getPriorityEmoji(filtroPrioridad)}</span>
+                </div>
+                <span className="text-sm font-medium text-gray-700">
+                  {filtroPrioridad === "" ? "Todas las prioridades" :
+                  filtroPrioridad === "alta" ? "Prioridad Alta" :
+                  filtroPrioridad === "media" ? "Prioridad Media" :
+                  filtroPrioridad === "baja" ? "Prioridad Baja" : "Todas las prioridades"}
+                </span>
+              </div>
 
-</div>
+              <select
+                value={filtroPrioridad}
+                onChange={(e) => setFiltroPrioridad(e.target.value)}
+                className="w-full h-[48px] p-3 pl-12 border-2 border-gray-200 rounded-xl shadow-sm focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all duration-200 font-medium bg-gradient-to-r from-white to-gray-50 appearance-none cursor-pointer"
+                style={{
+                  backgroundImage: `url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236B7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e")`,
+                  backgroundPosition: 'right 12px center',
+                  backgroundRepeat: 'no-repeat',
+                  backgroundSize: '16px'
+                }}
+              >
+                <option value="">🔄 Todas las prioridades</option>
+                <option value="alta">🔴 Prioridad Alta</option>
+                <option value="media">🟡 Prioridad Media</option>
+                <option value="baja">🟢 Prioridad Baja</option>
+              </select>
 
+              <div className="absolute left-4 top-[52px] -translate-y-1/2 pointer-events-none">
+                <span className="text-gray-400 text-lg">🎯</span>
+              </div>
+            </div>
+          </div>
+
+          <div className="lg:row-start-1 lg:col-start-3 lg:self-end">
+            <button
+              onClick={clearFilters}
+              className="w-full lg:w-auto px-6 py-3 h-[48px] bg-gradient-to-r from-gray-100 to-gray-200 hover:from-gray-200 hover:to-gray-300 text-gray-800 font-bold rounded-xl border-2 border-gray-300 transition-all duration-200 hover:scale-105 hover:shadow-md flex items-center justify-center gap-2"
+              title="Limpiar todos los filtros"
+            >
+              <span className="text-lg">🧹</span>
+              <span className="text-sm tracking-wide">LIMPIAR</span>
+            </button>
+          </div>
+
+          <div className="lg:row-start-2 lg:col-start-1">
+            {proyectos.length > 0 && (
+              <div className="mt-1 flex flex-wrap gap-2">
+                {proyectos.slice(0, 6).map((proyecto) => (
+                  <div key={`preview-${proyecto.id}`} className="flex items-center gap-1 text-xs text-gray-600">
+                    <div className={`w-2 h-2 rounded-full ${getProjectColor(proyecto.name)}`}></div>
+                    <span className="truncate max-w-20">{proyecto.name}</span>
+                  </div>
+                ))}
+                {proyectos.length > 6 && (
+                  <div className="text-xs text-gray-500">+{proyectos.length - 6} más...</div>
+                )}
+              </div>
+            )}
+          </div>
+
+          <div className="lg:row-start-2 lg:col-start-2">
+            <div className="mt-1 flex flex-wrap gap-3">
+              <div className="flex items-center gap-1 text-xs text-gray-600">
+                <div className="w-2 h-2 rounded-full bg-purple-400 flex items-center justify-center">
+                  <span style={{ fontSize: '6px' }}>🔄</span>
+                </div>
+                <span>Todas</span>
+              </div>
+              <div className="flex items-center gap-1 text-xs text-gray-600">
+                <div className="w-2 h-2 rounded-full bg-red-500 flex items-center justify-center">
+                  <span style={{ fontSize: '6px' }}>🔴</span>
+                </div>
+                <span>Alta</span>
+              </div>
+              <div className="flex items-center gap-1 text-xs text-gray-600">
+                <div className="w-2 h-2 rounded-full bg-yellow-500 flex items-center justify-center">
+                  <span style={{ fontSize: '6px' }}>🟡</span>
+                </div>
+                <span>Media</span>
+              </div>
+              <div className="flex items-center gap-1 text-xs text-gray-600">
+                <div className="w-2 h-2 rounded-full bg-green-500 flex items-center justify-center">
+                  <span style={{ fontSize: '6px' }}>🟢</span>
+                </div>
+                <span>Baja</span>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );
 
+  // [El resto del código permanece igual hasta los modales]
+
   // Si onlyContent es true, renderizar solo el contenido
   if (onlyContent) {
-    // Aplicar filtros a todas las tareas
     const filteredTasks = applyFilters(tasks);
-
-    // Agrupar tareas filtradas por estado para las 3 columnas
     const tasksByStatus = {
       pendiente: filteredTasks.filter(task => task.status === 'pendiente'),
       en_progreso: filteredTasks.filter(task => task.status === 'en_progreso'),  
@@ -476,12 +454,10 @@ const BotonTareas: React.FC<BotonTareasProps> = ({
           📋 Gestión de Tareas
         </h3>
         
-        {/* Sección de filtros */}
         <div className="max-w-7xl mx-auto mb-6">
           <FiltersSection />
         </div>
 
-        {/* Vista Kanban de 3 columnas */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 max-w-7xl mx-auto">
           {columns.map((column) => (
             <div 
@@ -493,7 +469,6 @@ const BotonTareas: React.FC<BotonTareasProps> = ({
               onDragLeave={handleDragLeave}
               onDrop={(e) => handleDrop(e, column.id)}
             >
-              {/* Header de la columna */}
               <div className="flex items-center justify-between mb-4">
                 <h4 className="text-lg font-semibold text-gray-800">
                   {column.title}
@@ -503,7 +478,6 @@ const BotonTareas: React.FC<BotonTareasProps> = ({
                 </span>
               </div>
 
-              {/* Tareas de la columna */}
               <div className="space-y-3">
                 {column.tasks.length === 0 ? (
                   <div className={`text-gray-500 text-center py-8 italic rounded-lg border-2 border-dashed border-gray-300 ${
@@ -559,7 +533,6 @@ const BotonTareas: React.FC<BotonTareasProps> = ({
                         </DropdownMenuContent>
                       </DropdownMenu>
 
-                      {/* Indicador de arrastre */}
                       <div className="absolute top-2 left-2 text-gray-400">
                         <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8h16M4 16h16" />
@@ -595,7 +568,6 @@ const BotonTareas: React.FC<BotonTareasProps> = ({
                         </p>
                       )}
 
-                      {/* Badge de prioridad con círculo de color */}
                       <div className="flex justify-start pl-6">
                         <div className="flex items-center gap-2">
                           <div className={`w-3 h-3 rounded-full ${getPrioritySelectColor(task.priority)} border border-white shadow-sm flex items-center justify-center`}>
@@ -654,13 +626,16 @@ const BotonTareas: React.FC<BotonTareasProps> = ({
               setEditingTaskId(selectedTaskForDetails.id);
               setSelectedTaskForDetails(null);
             }}
+            onOpenCalendar={onOpenCalendar} // Pasar el callback al modal
           />
         )}
       </>
     );
   }
 
-  // Si no está activo, solo renderizar el botón de navegación
+  // [El resto del código de vista lista permanece igual...]
+  
+  // Vista lista cuando está activo
   if (!isActive) {
     return (
       <div className="relative">
@@ -675,12 +650,10 @@ const BotonTareas: React.FC<BotonTareasProps> = ({
     );
   }
 
-  // Vista completa cuando está activo (vista de lista)
   const filteredTasks = applyFilters(tasks);
 
   return (
     <>
-      {/* Botón de navegación activo */}
       <div className="relative">
         <button
           onClick={onClick}
@@ -692,7 +665,6 @@ const BotonTareas: React.FC<BotonTareasProps> = ({
         </button>
       </div>
 
-      {/* Vista de contenido */}
       <div className="mt-10 relative">
         <div className="min-h-96">
           <div className="relative">
@@ -700,7 +672,6 @@ const BotonTareas: React.FC<BotonTareasProps> = ({
               ✅ Lista de Tareas Pendientes
             </h3>
             
-            {/* Sección de filtros para la vista de lista */}
             <div className="max-w-xl mx-auto mb-6">
               <FiltersSection />
             </div>
@@ -769,8 +740,7 @@ const BotonTareas: React.FC<BotonTareasProps> = ({
                     )}
                     {task.dueDate && (
                       <p className="text-sm text-gray-500 mt-1">
-                        Fecha límite:{" "}
-                        {new Date(task.dueDate).toLocaleDateString()}
+                        Fecha límite: {new Date(task.dueDate).toLocaleDateString()}
                       </p>
                     )}
                     <div className="flex justify-between items-center mt-3">
@@ -783,11 +753,7 @@ const BotonTareas: React.FC<BotonTareasProps> = ({
                             {task.priority}
                           </span>
                         </div>
-                        <span
-                          className={`text-sm px-3 py-1 rounded-full ${getStatusColor(
-                            task.status
-                          )}`}
-                        >
+                        <span className={`text-sm px-3 py-1 rounded-full ${getStatusColor(task.status)}`}>
                           {task.status.replace("_", " ")}
                         </span>
                       </div>
@@ -840,6 +806,7 @@ const BotonTareas: React.FC<BotonTareasProps> = ({
             setEditingTaskId(selectedTaskForDetails.id);
             setSelectedTaskForDetails(null);
           }}
+          onOpenCalendar={onOpenCalendar} // ✅ Callback para vista kanban
         />
       )}
     </>

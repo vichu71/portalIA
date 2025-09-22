@@ -3,6 +3,7 @@
 .classpath
 .project
 .settings/
+.IA_question
 
 # Java backend
 target/

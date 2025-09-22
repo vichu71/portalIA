@@ -1,5 +1,5 @@
 import React from 'react';
-import { X, Calendar, Target, Clock, User, Tag, Folder } from 'lucide-react';
+import { X, Calendar, Target, Clock, User, Tag, Folder, CalendarDays } from 'lucide-react';
 import { Task } from '../services/taskService';
 
 interface TaskDetailsModalProps {
@@ -7,6 +7,7 @@ interface TaskDetailsModalProps {
   projectName: string | null;
   onClose: () => void;
   onEdit: () => void;
+  onOpenCalendar?: (task: Task) => void; // Nueva prop para abrir el calendario
 }
 
 const TaskDetailsModal: React.FC<TaskDetailsModalProps> = ({
@@ -14,6 +15,7 @@ const TaskDetailsModal: React.FC<TaskDetailsModalProps> = ({
   projectName,
   onClose,
   onEdit,
+  onOpenCalendar,
 }) => {
   const getPriorityColor = (priority: string) => {
     switch (priority) {
@@ -54,6 +56,15 @@ const TaskDetailsModal: React.FC<TaskDetailsModalProps> = ({
   };
 
   const duration = calculateDuration();
+  const hasTimeRange = task.createdAt && task.dueDate;
+  const hasAnyDate = task.createdAt || task.dueDate;
+
+  const handleOpenCalendar = () => {
+    if (onOpenCalendar) {
+      onOpenCalendar(task);
+      onClose(); // Cerrar el modal de detalles
+    }
+  };
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
@@ -97,10 +108,29 @@ const TaskDetailsModal: React.FC<TaskDetailsModalProps> = ({
 
           {/* Información de fechas */}
           <div className="bg-gray-50 rounded-lg p-4 space-y-3">
-            <h4 className="font-semibold text-gray-800 flex items-center">
-              <Calendar className="w-5 h-5 mr-2" />
-              Cronología
-            </h4>
+            <div className="flex items-center justify-between">
+              <h4 className="font-semibold text-gray-800 flex items-center">
+                <Calendar className="w-5 h-5 mr-2" />
+                Cronología
+              </h4>
+              
+             
+              
+              {/* Botón SIEMPRE visible para debug */}
+              <button
+                onClick={handleOpenCalendar}
+                disabled={!onOpenCalendar || !hasAnyDate}
+                className={`flex items-center gap-2 px-4 py-2 text-sm font-bold rounded-lg transition-all ${
+                  (onOpenCalendar && hasAnyDate)
+                    ? 'text-white bg-green-500 hover:bg-green-600 border-2 border-green-600 shadow-lg' 
+                    : 'text-gray-400 bg-gray-200 border-2 border-gray-300 cursor-not-allowed'
+                }`}
+                title={hasTimeRange ? "Ver rango completo en calendario" : "Ver fecha en calendario"}
+              >
+                <CalendarDays className="w-4 h-4" />
+                {hasTimeRange ? "VER RANGO" : "VER FECHA"}
+              </button>
+            </div>
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">

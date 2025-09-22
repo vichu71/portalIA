@@ -7,9 +7,14 @@ import { getCurrentMonthDailyNotes, createOrUpdateDailyNote, DailyNote } from ".
 interface UseCalendarLogicProps {
   isActive: boolean;
   onToastMessage: (message: string) => void;
+  externalHighlightedTask?: Task | null; // Nueva prop para tarea externa
 }
 
-export const useCalendarLogic = ({ isActive, onToastMessage }: UseCalendarLogicProps) => {
+export const useCalendarLogic = ({ 
+  isActive, 
+  onToastMessage, 
+  externalHighlightedTask 
+}: UseCalendarLogicProps) => {
   // Estados principales
   const [tasks, setTasks] = useState<Task[]>([]);
   const [proyectos, setProyectos] = useState<Project[]>([]);
@@ -51,20 +56,24 @@ export const useCalendarLogic = ({ isActive, onToastMessage }: UseCalendarLogicP
     }
     
     if (typeof dateInput === 'string') {
-      // Si contiene 'T', es formato ISO
       if (dateInput.includes('T')) {
         return formatDateToLocalYMD(new Date(dateInput));
       }
-      // Si ya es YYYY-MM-DD, regresarlo tal como está
       if (/^\d{4}-\d{2}-\d{2}$/.test(dateInput)) {
         return dateInput;
       }
-      // Intentar parsearlo como fecha
       return formatDateToLocalYMD(new Date(dateInput));
     }
     
     return '';
   };
+
+  // Efecto para manejar tarea externa destacada
+  useEffect(() => {
+    if (externalHighlightedTask) {
+      setHighlightedTask(externalHighlightedTask);
+    }
+  }, [externalHighlightedTask]);
 
   // Cargar datos cuando el componente se monta o cambia el mes
   useEffect(() => {
@@ -74,8 +83,6 @@ export const useCalendarLogic = ({ isActive, onToastMessage }: UseCalendarLogicP
       loadDailyNotes();
     }
   }, [isActive, currentDate]);
-
- 
 
   // Funciones de carga
   const loadTasks = () => {
@@ -101,6 +108,19 @@ export const useCalendarLogic = ({ isActive, onToastMessage }: UseCalendarLogicP
     } finally {
       setIsLoadingNotes(false);
     }
+  };
+
+  // Funciones nuevas para integración con tareas
+  const setExternalHighlightedTask = (task: Task | null) => {
+    setHighlightedTask(task);
+  };
+
+  const clearHighlightedTask = () => {
+    setHighlightedTask(null);
+  };
+
+  const navigateToDate = (date: Date) => {
+    setCurrentDate(new Date(date.getFullYear(), date.getMonth(), 1));
   };
 
   // Funciones de navegación del calendario
@@ -147,7 +167,7 @@ export const useCalendarLogic = ({ isActive, onToastMessage }: UseCalendarLogicP
     return false;
   };
 
- 
+  // Función para verificar si un día está en el rango de la tarea destacada
   const isDayBetweenTask = (date: Date) => {
     if (!highlightedTask || !highlightedTask.createdAt || !highlightedTask.dueDate) {
       return false;
@@ -155,15 +175,9 @@ export const useCalendarLogic = ({ isActive, onToastMessage }: UseCalendarLogicP
     
     const dayString = formatDateToLocalYMD(date);
     const createdString = normalizeDateString(highlightedTask.createdAt);
-    const dueString = highlightedTask.dueDate; // ya debería ser YYYY-MM-DD
+    const dueString = highlightedTask.dueDate;
     
-    // Debug detallado
-    const isInRange = dayString >= createdString && dayString <= dueString;
-    const todayString = formatDateToLocalYMD(new Date());
-    
-   
-    
-    return isInRange;
+    return dayString >= createdString && dayString <= dueString;
   };
 
   const getNoteForDate = (dateString: string) => {
@@ -178,10 +192,6 @@ export const useCalendarLogic = ({ isActive, onToastMessage }: UseCalendarLogicP
     
     setTimeout(() => {
       if (!preventSingleClick) {
-        console.log('👆 Tarea seleccionada:', task.title, {
-          createdAt: task.createdAt,
-          dueDate: task.dueDate
-        });
         setHighlightedTask(task);
       }
       setPreventSingleClick(false);
@@ -347,6 +357,11 @@ export const useCalendarLogic = ({ isActive, onToastMessage }: UseCalendarLogicP
     draggedTask,
     dragOverDate,
     highlightedTask,
+    
+    // Nuevas funciones para integración externa
+    setExternalHighlightedTask,
+    clearHighlightedTask,
+    navigateToDate,
     
     // Funciones de navegación
     goToPreviousMonth,

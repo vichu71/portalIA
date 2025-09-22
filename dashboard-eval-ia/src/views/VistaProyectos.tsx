@@ -12,6 +12,7 @@ import BotonServidores from "./BotonServidores";
 import BotonTareas from "./BotonTareas";
 import BotonCalendario from "./BotonCalendario";
 import BotonDashboardNotas from "./BotonDashboardNotas";
+import { Task } from "../services/taskService"; // ✨ Import necesario para la integración
 
 const VistaProyectos: React.FC = () => {
   // Estados mínimos para navegación y UI global
@@ -25,6 +26,9 @@ const VistaProyectos: React.FC = () => {
     | null
   >("project");
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+  
+  // ✨ NUEVO: Estado para la integración calendario-tareas
+  const [calendarTask, setCalendarTask] = useState<Task | null>(null);
 
   // Auto-ocultar toast después de 3 segundos
   useEffect(() => {
@@ -34,11 +38,43 @@ const VistaProyectos: React.FC = () => {
     }
   }, [toastMessage]);
 
+  // ✨ NUEVO: Handler para abrir calendario desde tareas
+  const handleOpenCalendarFromTask = (task: Task) => {
+    // Establecer la tarea que debe destacarse
+    setCalendarTask(task);
+    
+    // Cambiar al módulo de calendario
+    setActiveCategory('calendar');
+    
+    // Mensaje informativo
+    const hasRange = task.createdAt && task.dueDate;
+    setToastMessage(
+      hasRange 
+        ? `📅 Mostrando rango de "${task.title}" en calendario`
+        : `📅 Mostrando "${task.title}" en calendario`
+    );
+  };
+
+  // ✨ NUEVO: Handler para limpiar la tarea destacada
+  const handleClearHighlightedTask = () => {
+    setCalendarTask(null);
+  };
+
+  // ✨ MEJORADO: Handler para cambio de categoría que limpia destacado si es necesario
+  const handleCategoryChange = (category: typeof activeCategory) => {
+    setActiveCategory(category);
+    
+    // Limpiar tarea destacada si no vamos al calendario
+    if (category !== 'calendar') {
+      setCalendarTask(null);
+    }
+  };
+
   // Botones de navegación simplificados
   const NavButton = ({ category, icon: Icon, label, color, hoverColor, activeColor }: any) => (
     <div className="relative">
       <button
-        onClick={() => setActiveCategory(category)}
+        onClick={() => handleCategoryChange(category)} // ✨ Usar handler mejorado
         className={`w-24 h-24 flex flex-col items-center justify-center rounded-xl shadow-lg text-white text-sm transition-all duration-200 ${
           activeCategory === category
             ? `${activeColor} relative z-10 ring-4 ring-offset-2 shadow-xl scale-110`
@@ -113,7 +149,7 @@ const VistaProyectos: React.FC = () => {
             <div className="p-6">
               <BotonProyectos
                 isActive={true}
-                onClick={() => setActiveCategory("project")}
+                onClick={() => handleCategoryChange("project")}
                 onToastMessage={setToastMessage}
                 onlyContent={true}
               />
@@ -124,7 +160,7 @@ const VistaProyectos: React.FC = () => {
             <div className="p-6">
               <BotonServidores
                 isActive={true}
-                onClick={() => setActiveCategory("server")}
+                onClick={() => handleCategoryChange("server")}
                 onToastMessage={setToastMessage}
                 onlyContent={true}
               />
@@ -135,9 +171,10 @@ const VistaProyectos: React.FC = () => {
             <div className="p-6">
               <BotonTareas
                 isActive={true}
-                onClick={() => setActiveCategory("task")}
+                onClick={() => handleCategoryChange("task")}
                 onToastMessage={setToastMessage}
                 onlyContent={true}
+                onOpenCalendar={handleOpenCalendarFromTask} // ✨ CLAVE: Callback para integración
               />
             </div>
           )}
@@ -146,9 +183,11 @@ const VistaProyectos: React.FC = () => {
             <div className="p-6">
               <BotonCalendario
                 isActive={true}
-                onClick={() => setActiveCategory("calendar")}
+                onClick={() => handleCategoryChange("calendar")}
                 onToastMessage={setToastMessage}
                 onlyContent={true}
+                highlightedTask={calendarTask} // ✨ CLAVE: Tarea a destacar
+                onTaskDeselected={handleClearHighlightedTask} // ✨ CLAVE: Limpiar destacado
               />
             </div>
           )}
@@ -157,7 +196,7 @@ const VistaProyectos: React.FC = () => {
             <div className="p-6">
               <BotonDashboardNotas
                 isActive={true}
-                onClick={() => setActiveCategory("dashboard")}
+                onClick={() => handleCategoryChange("dashboard")}
                 onToastMessage={setToastMessage}
                 onlyContent={true}
               />

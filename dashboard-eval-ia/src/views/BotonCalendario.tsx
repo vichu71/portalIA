@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect } from "react";
 import { CalendarDaysIcon } from "@heroicons/react/24/outline";
 import { useCalendarLogic } from "../hooks/useCalendarLogic";
 import { useCalendarDates } from "../hooks/useCalendarDates";
@@ -7,12 +7,15 @@ import { CalendarDay } from "../components/CalendarDay";
 import { DailyNoteModal } from "../components/DailyNoteModal";
 import { CalendarLegend } from "../components/CalendarLegend";
 import TaskDetailsModal from "../components/TaskDetailModal";
+import { Task } from "../services/taskService";
 
 interface BotonCalendarioProps {
   isActive: boolean;
   onClick: () => void;
   onToastMessage: (message: string) => void;
   onlyContent?: boolean;
+  highlightedTask?: Task | null; // ✨ Nueva prop para destacar tarea
+  onTaskDeselected?: () => void; // ✨ Callback cuando se deselecciona
 }
 
 const BotonCalendario: React.FC<BotonCalendarioProps> = ({
@@ -20,8 +23,10 @@ const BotonCalendario: React.FC<BotonCalendarioProps> = ({
   onClick,
   onToastMessage,
   onlyContent = false,
+  highlightedTask, // ✨ Nueva prop
+  onTaskDeselected, // ✨ Nueva prop
 }) => {
-  // Función auxiliar mejorada para formatear fechas de forma consistente
+  // Función auxiliar para formatear fechas de forma consistente
   const toLocalYMD = (d: Date) => {
     const y = d.getFullYear();
     const m = String(d.getMonth() + 1).padStart(2, '0');
@@ -29,7 +34,7 @@ const BotonCalendario: React.FC<BotonCalendarioProps> = ({
     return `${y}-${m}-${dd}`;
   };
 
-  // Función CORREGIDA para calcular el segmento del rango
+  // Función para calcular el segmento del rango
   const computeRangeSegment = (date: Date): 'none' | 'past' | 'today' | 'future' => {
     const ht = calendarLogic.highlightedTask;
     if (!ht || !ht.createdAt || !ht.dueDate) {
@@ -39,7 +44,6 @@ const BotonCalendario: React.FC<BotonCalendarioProps> = ({
     const dayStr = toLocalYMD(date);
     const todayStr = toLocalYMD(new Date());
     
-    // Usar la misma función de normalización que en isDayBetweenTask
     let createdStr: string;
     if (typeof ht.createdAt === 'string') {
       if (ht.createdAt.includes('T')) {
@@ -52,24 +56,23 @@ const BotonCalendario: React.FC<BotonCalendarioProps> = ({
     }
     
     const dueStr = ht.dueDate;
-
-    // IMPORTANT: Primero verificar si está en el rango
     const isInRange = dayStr >= createdStr && dayStr <= dueStr;
     
-
-
-    // Si NO está en el rango, retornar 'none'
     if (!isInRange) {
       return 'none';
     }
     
-    // Si está en el rango, calcular el segmento
     if (dayStr < todayStr) return 'past';
     if (dayStr > todayStr) return 'future';
     return 'today';
   };
 
-  const calendarLogic = useCalendarLogic({ isActive, onToastMessage });
+  const calendarLogic = useCalendarLogic({ 
+    isActive, 
+    onToastMessage,
+    externalHighlightedTask: highlightedTask // ✨ Pasar tarea externa
+  });
+  
   const { 
     getCurrentMonthDates, 
     formatMonthYear, 
@@ -79,7 +82,30 @@ const BotonCalendario: React.FC<BotonCalendarioProps> = ({
     getTasksCreatedOnDate
   } = useCalendarDates(calendarLogic.currentDate);
 
- 
+  // ✨ Efecto para manejar el cambio de tarea destacada desde el exterior
+  useEffect(() => {
+    if (highlightedTask && isActive) {
+      // Destacar automáticamente la tarea
+      // calendarLogic.setExternalHighlightedTask(highlightedTask); // Temporalmente comentado
+      
+      // Si la tarea tiene fecha de creación, navegar a ese mes
+      // if (highlightedTask.createdAt) {
+      //   const taskDate = new Date(highlightedTask.createdAt);
+      //   calendarLogic.navigateToDate(taskDate);
+      // } else if (highlightedTask.dueDate) {
+      //   const taskDate = new Date(highlightedTask.dueDate);
+      //   calendarLogic.navigateToDate(taskDate);
+      // }
+    }
+  }, [highlightedTask, isActive]);
+
+  // ✨ Efecto para limpiar la tarea destacada cuando se deselecciona en el calendario
+  useEffect(() => {
+    // if (!calendarLogic.highlightedTask && highlightedTask && onTaskDeselected) {
+    //   onTaskDeselected();
+    // }
+  }, [calendarLogic.highlightedTask, highlightedTask, onTaskDeselected]);
+
   // Función para renderizar el calendario
   const renderCalendar = () => {
     const { dates, currentMonth, currentYear } = getCurrentMonthDates();
@@ -100,7 +126,38 @@ const BotonCalendario: React.FC<BotonCalendarioProps> = ({
             onToday={calendarLogic.goToCurrentMonth}
           />
 
-          
+          {/* ✨ Información de tarea destacada desde tareas */}
+          {highlightedTask && calendarLogic.highlightedTask?.id === highlightedTask.id && (
+            <div className="bg-gradient-to-r from-purple-50 to-blue-50 border-2 border-purple-200 rounded-xl p-4 mb-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h4 className="text-lg font-bold text-purple-700 mb-1">
+                    🎯 Tarea destacada: "{highlightedTask.title}"
+                  </h4>
+                  <div className="flex items-center gap-4 text-sm text-purple-600">
+                    {highlightedTask.createdAt && (
+                      <span>📅 Creada: {formatDateForDisplay(toLocalYMD(new Date(highlightedTask.createdAt)))}</span>
+                    )}
+                    {highlightedTask.dueDate && (
+                      <span>🎯 Vence: {formatDateForDisplay(highlightedTask.dueDate)}</span>
+                    )}
+                  </div>
+                </div>
+                <button
+                  onClick={() => {
+                    calendarLogic.clearHighlightedTask();
+                    if (onTaskDeselected) onTaskDeselected();
+                  }}
+                  className="text-purple-400 hover:text-purple-600 transition-colors"
+                  title="Quitar destacado"
+                >
+                  <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+          )}
 
           {/* Indicador de carga de notas */}
           {calendarLogic.isLoadingNotes && (
@@ -138,7 +195,6 @@ const BotonCalendario: React.FC<BotonCalendarioProps> = ({
           {/* Grid del calendario */}
           <div className="grid grid-cols-7 gap-1">
             {dates.map((date, index) => {
-              // claves y checks básicos
               const dayKey = formatDateForNote(date);
               const isInCurrentMonth =
                 date.getMonth() === currentMonth &&
@@ -147,20 +203,15 @@ const BotonCalendario: React.FC<BotonCalendarioProps> = ({
               const isToday =
                 formatDateForNote(date) === formatDateForNote(new Date());
 
-              // datos por día
               const tasksCreated = getTasksCreatedOnDate(calendarLogic.tasks, date);
               const tasksWithDeadline = getTasksForDate(calendarLogic.tasks, date);
               const hasNote = calendarLogic.getNoteForDate(dayKey);
 
-              // drag & drop
               const isDragOver = calendarLogic.dragOverDate === dayKey;
               const draggedTask = calendarLogic.draggedTask;
 
-              // pintado de rango y segmento
               const isBetweenHighlightedTask = calendarLogic.isDayBetweenTask(date);
               const rangeSegment = computeRangeSegment(date);
-
-             
 
               return (
                 <CalendarDay
@@ -175,7 +226,6 @@ const BotonCalendario: React.FC<BotonCalendarioProps> = ({
                   draggedTask={draggedTask}
                   isBetweenHighlightedTask={isBetweenHighlightedTask}
                   rangeSegment={rangeSegment}
-                  // Handlers (envolvemos para pasar formatDateForNote cuando lo pide el hook)
                   onDayClick={(d, e) => calendarLogic.handleDayClick(d, e, formatDateForNote)}
                   onDragOver={(e) => calendarLogic.handleDayDragOver(e, date, formatDateForNote)}
                   onDragLeave={(e) => calendarLogic.handleDayDragLeave(e)}
