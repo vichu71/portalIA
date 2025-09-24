@@ -7,6 +7,7 @@ import com.portal.ia.repository.ProjectRepository;
 import org.springframework.data.domain.*;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 import java.util.HashMap;
@@ -15,6 +16,8 @@ import jakarta.persistence.EntityNotFoundException;
 
 @Service
 public class TaskService {
+	
+	private static final String STATUS_COMPLETADA = "completada";
 
     private final TaskRepository taskRepository;
     private final ProjectRepository projectRepository;
@@ -86,6 +89,13 @@ public class TaskService {
             throw new IllegalArgumentException("El estado debe ser 'pendiente', 'en_progreso' o 'completada'");
         }
 
+        // NUEVA VALIDACIÓN: Validar fechas si ambas están presentes
+        if (task.getStartDate() != null && task.getDueDate() != null) {
+            if (task.getStartDate().isAfter(task.getDueDate())) {
+                throw new IllegalArgumentException("La fecha de inicio no puede ser posterior a la fecha límite");
+            }
+        }
+
         return taskRepository.save(task);
     }
 
@@ -93,6 +103,7 @@ public class TaskService {
         if (task.getId() != null) {
             throw new IllegalArgumentException("No se puede especificar ID al crear una nueva tarea");
         }
+        applyCompletionRules(task, null);
         return save(task);
     }
 
@@ -134,16 +145,30 @@ public class TaskService {
         if (updatedTaskData.getStatus() != null) {
             existingTask.setStatus(updatedTaskData.getStatus());
         }
+        
+       
+        if (updatedTaskData.getStartDate() != null) {
+            existingTask.setStartDate(updatedTaskData.getStartDate());
+        }
+        
         if (updatedTaskData.getDueDate() != null) {
             existingTask.setDueDate(updatedTaskData.getDueDate());
         }
+        
+        
+        if (existingTask.getStartDate() != null && existingTask.getDueDate() != null) {
+            if (existingTask.getStartDate().isAfter(existingTask.getDueDate())) {
+                throw new IllegalArgumentException("La fecha de inicio no puede ser posterior a la fecha límite");
+            }
+        }
+        
         if (updatedTaskData.getAssignedTo() != null) {
             existingTask.setAssignedTo(updatedTaskData.getAssignedTo());
         }
         if (updatedTaskData.getProject() != null) {
             existingTask.setProject(updatedTaskData.getProject());
         }
-
+        applyCompletionRules(existingTask, /*previousStatus*/ null);
         return save(existingTask);
     }
 
@@ -211,5 +236,33 @@ public class TaskService {
         task.setProject(null);
 
         return taskRepository.save(task);
+    }
+    
+    private void applyCompletionRules(Task task, String previousStatus) {
+        String status = task.getStatus();
+        LocalDate requestedCompleted = task.getCompletedDate();
+
+        // Si NO está completada -> completedDate debe ser null
+        if (status == null || !STATUS_COMPLETADA.equalsIgnoreCase(status)) {
+            task.setCompletedDate(null);
+            return;
+        }
+
+        // Está completada:
+        // 1) Si viene fecha en la request, la respetamos
+        if (requestedCompleted != null) {
+            task.setCompletedDate(requestedCompleted);
+        } else {
+            // 2) Si no viene, auto-hoy
+            task.setCompletedDate(LocalDate.now());
+        }
+
+        // (Opcional) Validación con startDate
+        if (task.getStartDate() != null && task.getCompletedDate() != null) {
+            if (task.getCompletedDate().isBefore(task.getStartDate())) {
+                // Ajusta a la misma startDate para evitar incoherencias
+                task.setCompletedDate(task.getStartDate());
+            }
+        }
     }
 }

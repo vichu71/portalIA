@@ -39,7 +39,7 @@ export const useCalendarLogic = ({
   const [highlightedTask, setHighlightedTask] = useState<Task | null>(null);
   const [preventSingleClick, setPreventSingleClick] = useState(false);
 
-  // Función auxiliar para formatear fechas de manera consistente
+  // FUNCIÓN AUXILIAR: Normalizar fechas de manera consistente
   const formatDateToLocalYMD = (date: Date): string => {
     const year = date.getFullYear();
     const month = String(date.getMonth() + 1).padStart(2, "0");
@@ -47,7 +47,7 @@ export const useCalendarLogic = ({
     return `${year}-${month}-${day}`;
   };
 
-  // Función para normalizar fechas de diferentes formatos
+  // FUNCIÓN AUXILIAR: Normalizar fecha de diferentes formatos
   const normalizeDateString = (dateInput: string | Date): string => {
     if (!dateInput) return '';
     
@@ -68,6 +68,17 @@ export const useCalendarLogic = ({
     return '';
   };
 
+  // FUNCIÓN AUXILIAR: Obtener fecha efectiva de inicio de una tarea
+  const getEffectiveStartDate = (task: Task): string => {
+    if (task.startDate) {
+      return normalizeDateString(task.startDate);
+    }
+    if (task.createdAt) {
+      return normalizeDateString(task.createdAt);
+    }
+    return formatDateToLocalYMD(new Date()); // Fallback a hoy
+  };
+
   // Efecto para manejar tarea externa destacada
   useEffect(() => {
     if (externalHighlightedTask) {
@@ -84,11 +95,31 @@ export const useCalendarLogic = ({
     }
   }, [isActive, currentDate]);
 
+  // Debug: Mostrar tareas cargadas
+  useEffect(() => {
+    if (tasks.length > 0) {
+      console.log('📅 Tareas cargadas en calendario:', tasks.map(t => ({
+        id: t.id,
+        title: t.title,
+        startDate: t.startDate,
+        dueDate: t.dueDate,
+        createdAt: t.createdAt,
+        effectiveStartDate: getEffectiveStartDate(t)
+      })));
+    }
+  }, [tasks]);
+
   // Funciones de carga
-  const loadTasks = () => {
-    getTasks()
-      .then(setTasks)
-      .catch((err) => console.error("Error cargando tareas:", err));
+  const loadTasks = async () => {
+    try {
+      console.log('🔄 Cargando tareas...');
+      const loadedTasks = await getTasks();
+      console.log('✅ Tareas cargadas:', loadedTasks.length);
+      setTasks(loadedTasks);
+    } catch (error) {
+      console.error("❌ Error cargando tareas:", error);
+      onToastMessage("Error al cargar las tareas");
+    }
   };
 
   const loadProjects = () => {
@@ -167,17 +198,21 @@ export const useCalendarLogic = ({
     return false;
   };
 
-  // Función para verificar si un día está en el rango de la tarea destacada
+  // FUNCIÓN ACTUALIZADA: Verificar si un día está en el rango de la tarea destacada
   const isDayBetweenTask = (date: Date) => {
-    if (!highlightedTask || !highlightedTask.createdAt || !highlightedTask.dueDate) {
+    if (!highlightedTask) {
       return false;
     }
     
     const dayString = formatDateToLocalYMD(date);
-    const createdString = normalizeDateString(highlightedTask.createdAt);
-    const dueString = highlightedTask.dueDate;
+    const startDateString = getEffectiveStartDate(highlightedTask);
+    const endDateString = highlightedTask.dueDate ? normalizeDateString(highlightedTask.dueDate) : '';
     
-    return dayString >= createdString && dayString <= dueString;
+    if (!startDateString || !endDateString) {
+      return false;
+    }
+    
+    return dayString >= startDateString && dayString <= endDateString;
   };
 
   const getNoteForDate = (dateString: string) => {
@@ -192,6 +227,7 @@ export const useCalendarLogic = ({
     
     setTimeout(() => {
       if (!preventSingleClick) {
+        console.log('🎯 Tarea seleccionada:', task.title);
         setHighlightedTask(task);
       }
       setPreventSingleClick(false);
@@ -204,6 +240,7 @@ export const useCalendarLogic = ({
     }
     
     setPreventSingleClick(true);
+    console.log('👁️ Mostrando detalles de tarea:', task.title);
     setSelectedTaskForDetails(task);
   };
 
@@ -261,6 +298,7 @@ export const useCalendarLogic = ({
 
   // Funciones para drag & drop
   const handleTaskDragStart = (e: React.DragEvent, task: Task) => {
+    console.log('🏃 Arrastrando tarea:', task.title);
     setDraggedTask(task);
     e.dataTransfer.effectAllowed = 'move';
     e.dataTransfer.setData('text/plain', task.title);
@@ -295,6 +333,7 @@ export const useCalendarLogic = ({
     }
   };
 
+  // FUNCIÓN ACTUALIZADA: Manejar drop de tareas
   const handleDayDrop = async (e: React.DragEvent, date: Date, formatDateForNote: (date: Date) => string) => {
     e.preventDefault();
     setDragOverDate(null);
@@ -309,6 +348,7 @@ export const useCalendarLogic = ({
     }
 
     try {
+      console.log('📦 Moviendo tarea a:', newDateString);
       const updatedTask = await updateTask(draggedTask.id, { 
         dueDate: newDateString
       });
@@ -318,6 +358,11 @@ export const useCalendarLogic = ({
           task.id === draggedTask.id ? updatedTask : task
         )
       );
+
+      // Actualizar highlightedTask si es la misma tarea
+      if (highlightedTask && highlightedTask.id === draggedTask.id) {
+        setHighlightedTask(updatedTask);
+      }
 
       const formatDisplayDate = (dateStr: string) => {
         const [year, month, day] = dateStr.split('-');
@@ -330,12 +375,12 @@ export const useCalendarLogic = ({
       };
 
       onToastMessage(
-        `📅 "${draggedTask.title}" movida a ${formatDisplayDate(newDateString)}`
+        `📦 "${draggedTask.title}" movida a ${formatDisplayDate(newDateString)}`
       );
       
     } catch (error) {
-      console.error('Error actualizando fecha de tarea:', error);
-      onToastMessage('⚠ Error al mover la tarea. Inténtalo de nuevo.');
+      console.error('❌ Error actualizando fecha de tarea:', error);
+      onToastMessage('⚠️ Error al mover la tarea. Inténtalo de nuevo.');
       loadTasks();
     } finally {
       setDraggedTask(null);
@@ -362,6 +407,10 @@ export const useCalendarLogic = ({
     setExternalHighlightedTask,
     clearHighlightedTask,
     navigateToDate,
+    
+    // Funciones auxiliares actualizadas
+    getEffectiveStartDate,
+    normalizeDateString,
     
     // Funciones de navegación
     goToPreviousMonth,

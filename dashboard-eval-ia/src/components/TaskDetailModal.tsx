@@ -1,5 +1,5 @@
 import React from 'react';
-import { X, Calendar, Target, Clock, User, Tag, Folder, CalendarDays } from 'lucide-react';
+import { X, Calendar, Target, Clock, User, Tag, Folder, CalendarDays, Play } from 'lucide-react';
 import { Task } from '../services/taskService';
 
 interface TaskDetailsModalProps {
@@ -7,7 +7,7 @@ interface TaskDetailsModalProps {
   projectName: string | null;
   onClose: () => void;
   onEdit: () => void;
-  onOpenCalendar?: (task: Task) => void; // Nueva prop para abrir el calendario
+  onOpenCalendar?: (task: Task) => void;
 }
 
 const TaskDetailsModal: React.FC<TaskDetailsModalProps> = ({
@@ -35,10 +35,17 @@ const TaskDetailsModal: React.FC<TaskDetailsModalProps> = ({
     }
   };
 
+  // Función para obtener la fecha de inicio efectiva
+  const getEffectiveStartDate = (): string | undefined => {
+    // Priorizar startDate sobre createdAt
+    return task.startDate || task.createdAt;
+  };
+
   const calculateDuration = () => {
-    if (!task.createdAt || !task.dueDate) return null;
+    const effectiveStartDate = getEffectiveStartDate();
+    if (!effectiveStartDate || !task.dueDate) return null;
     
-    const startDate = new Date(task.createdAt);
+    const startDate = new Date(effectiveStartDate);
     const endDate = new Date(task.dueDate);
     const diffTime = Math.abs(endDate.getTime() - startDate.getTime());
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
@@ -56,13 +63,15 @@ const TaskDetailsModal: React.FC<TaskDetailsModalProps> = ({
   };
 
   const duration = calculateDuration();
-  const hasTimeRange = task.createdAt && task.dueDate;
-  const hasAnyDate = task.createdAt || task.dueDate;
+  const effectiveStartDate = getEffectiveStartDate();
+  const hasTimeRange = effectiveStartDate && task.dueDate;
+  const hasAnyDate = effectiveStartDate || task.dueDate;
+  const hasCustomStartDate = !!task.startDate; // Indica si tiene fecha de inicio personalizada
 
   const handleOpenCalendar = () => {
     if (onOpenCalendar) {
       onOpenCalendar(task);
-      onClose(); // Cerrar el modal de detalles
+      onClose();
     }
   };
 
@@ -114,9 +123,7 @@ const TaskDetailsModal: React.FC<TaskDetailsModalProps> = ({
                 Cronología
               </h4>
               
-             
-              
-              {/* Botón SIEMPRE visible para debug */}
+              {/* Botón para abrir calendario */}
               <button
                 onClick={handleOpenCalendar}
                 disabled={!onOpenCalendar || !hasAnyDate}
@@ -133,16 +140,25 @@ const TaskDetailsModal: React.FC<TaskDetailsModalProps> = ({
             </div>
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* Fecha de inicio */}
               <div className="space-y-2">
                 <div className="flex items-center text-sm">
-                  <div className="w-3 h-3 bg-green-500 rounded-full mr-2"></div>
-                  <span className="font-medium">Fecha de creación:</span>
+                  <Play className="w-3 h-3 text-green-500 mr-2" />
+                  <span className="font-medium">
+                    {hasCustomStartDate ? 'Fecha de inicio:' : 'Fecha de inicio (creación):'}
+                  </span>
                 </div>
                 <p className="text-gray-600 ml-5">
-                  {formatDate(task.createdAt)}
+                  {formatDate(effectiveStartDate)}
                 </p>
+                {hasCustomStartDate && (
+                  <p className="text-xs text-green-600 ml-5">
+                    📅 Fecha personalizada
+                  </p>
+                )}
               </div>
               
+              {/* Fecha límite */}
               <div className="space-y-2">
                 <div className="flex items-center text-sm">
                   <Target className="w-3 h-3 text-red-500 mr-2" />
@@ -152,8 +168,19 @@ const TaskDetailsModal: React.FC<TaskDetailsModalProps> = ({
                   {formatDate(task.dueDate)}
                 </p>
               </div>
+              {/* Fecha de finalización */}
+<div className="space-y-2">
+  <div className="flex items-center text-sm">
+    <Target className="w-3 h-3 text-green-600 mr-2" />
+    <span className="font-medium">Fecha de finalización:</span>
+  </div>
+  <p className="text-gray-600 ml-5">
+    {formatDate(task.completedDate)}
+  </p>
+</div>
             </div>
 
+            {/* Duración calculada */}
             {duration && (
               <div className="pt-2 border-t border-gray-200">
                 <div className="flex items-center text-sm">
@@ -194,14 +221,20 @@ const TaskDetailsModal: React.FC<TaskDetailsModalProps> = ({
             )}
           </div>
 
-          {/* Metadatos */}
+          {/* Metadatos de auditoría */}
           {(task.createdAt || task.updatedAt) && (
             <div className="text-xs text-gray-500 space-y-1 pt-4 border-t border-gray-100">
+              <p className="font-medium text-gray-600 mb-2">Información de auditoría:</p>
               {task.createdAt && (
-                <p>Creada: {new Date(task.createdAt).toLocaleString('es-ES')}</p>
+                <p>📝 Registrada: {new Date(task.createdAt).toLocaleString('es-ES')}</p>
               )}
               {task.updatedAt && task.updatedAt !== task.createdAt && (
-                <p>Última modificación: {new Date(task.updatedAt).toLocaleString('es-ES')}</p>
+                <p>✏️ Última modificación: {new Date(task.updatedAt).toLocaleString('es-ES')}</p>
+              )}
+              {hasCustomStartDate && task.createdAt && task.startDate !== task.createdAt?.split('T')[0] && (
+                <p className="text-blue-600">
+                  🗓️ Fecha de inicio personalizada (diferente a la fecha de creación)
+                </p>
               )}
             </div>
           )}

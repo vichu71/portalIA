@@ -1,12 +1,12 @@
-// services/taskService.ts
-
 export interface Task {
   id: number;
   title: string;
   description: string;
   priority: 'alta' | 'media' | 'baja';
   status: 'pendiente' | 'en_progreso' | 'completada';
+  startDate?: string;    // NUEVO CAMPO: fecha de inicio configurable
   dueDate?: string;
+  completedDate?: string; // YYYY-MM-DD
   assignedTo?: string;
   projectId?: number;
   createdAt?: string;
@@ -18,12 +18,35 @@ export interface CreateTaskData {
   description: string;
   priority: 'alta' | 'media' | 'baja';
   status: 'pendiente' | 'en_progreso' | 'completada';
+  startDate?: string;    // NUEVO CAMPO: fecha de inicio opcional
   dueDate?: string;
+  completedDate?: string;
   assignedTo?: string;
   projectId?: number;
 }
 
 export interface UpdateTaskData extends Partial<CreateTaskData> {}
+
+// Función auxiliar para obtener la fecha de inicio efectiva
+export const getEffectiveStartDate = (task: Task): string => {
+  // Si tiene startDate, usar esa; sino usar createdAt; sino fecha actual
+  return task.startDate || 
+         task.createdAt?.split('T')[0] || 
+         new Date().toISOString().split('T')[0];
+};
+
+// Función auxiliar para calcular duración en días
+export const calculateTaskDuration = (task: Task): number | null => {
+  const startDate = getEffectiveStartDate(task);
+  if (!startDate || !task.dueDate) return null;
+  
+  const start = new Date(startDate);
+  const end = new Date(task.dueDate);
+  const diffTime = Math.abs(end.getTime() - start.getTime());
+  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+  
+  return diffDays;
+};
 
 // URL base de la API - usando la misma que projectService
 const BASE_URL = 'http://localhost:8081';

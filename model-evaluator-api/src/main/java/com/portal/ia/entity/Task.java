@@ -38,6 +38,13 @@ public class Task {
     @Column(nullable = false)
     private String status; // 'pendiente', 'en_progreso', 'completada'
 
+   
+    @Column(name = "start_date")
+    private LocalDate startDate;
+    
+    @Column(name = "completed_date")
+    private LocalDate completedDate;
+
     private LocalDate dueDate;
 
     private String assignedTo;
@@ -58,6 +65,11 @@ public class Task {
         LocalDateTime now = LocalDateTime.now();
         this.createdAt = now;
         this.updatedAt = now;
+        
+       
+        if (this.startDate == null) {
+            this.startDate = LocalDate.now();
+        }
     }
 
     @PreUpdate

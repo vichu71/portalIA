@@ -19,7 +19,9 @@ const TaskEditorModal: React.FC<TaskEditorModalProps> = ({
     description: string;
     priority: 'alta' | 'media' | 'baja';
     status: 'pendiente' | 'en_progreso' | 'completada';
+    startDate: string;  // NUEVO: Fecha de inicio
     dueDate: string;
+    completedDate: string;
     assignedTo: string;
     projectId: string;
   }>({
@@ -27,7 +29,9 @@ const TaskEditorModal: React.FC<TaskEditorModalProps> = ({
     description: '',
     priority: 'media',
     status: 'pendiente',
+    startDate: new Date().toISOString().split('T')[0], // Por defecto: hoy
     dueDate: '',
+    completedDate: '',
     assignedTo: '',
     projectId: '',
   });
@@ -36,7 +40,7 @@ const TaskEditorModal: React.FC<TaskEditorModalProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [projects, setProjects] = useState<Project[]>([]);
 
-  // Datos de prueba para usuarios asignables, queda pendiente de implementar add usuarios si vemos que escala la aplicación, pero como es personal, pues eso, que solo yo de usuario
+  // Datos de prueba para usuarios asignables
   const mockUsers = [
     'Víctor Huecas',
   ];
@@ -70,7 +74,9 @@ const TaskEditorModal: React.FC<TaskEditorModalProps> = ({
         description: task.description,
         priority: task.priority,
         status: task.status,
+        startDate: task.startDate || task.createdAt?.split('T')[0] || new Date().toISOString().split('T')[0],
         dueDate: task.dueDate || '',
+        completedDate: task.completedDate || '',
         assignedTo: task.assignedTo || '',
         projectId: task.projectId?.toString() || '',
       });
@@ -95,6 +101,14 @@ const TaskEditorModal: React.FC<TaskEditorModalProps> = ({
       if (!formData.description.trim()) {
         throw new Error('La descripción es obligatoria');
       }
+      if (!formData.startDate) {
+        throw new Error('La fecha de inicio es obligatoria');
+      }
+      
+      // Validar que la fecha de inicio no sea posterior a la fecha límite
+      if (formData.dueDate && formData.startDate > formData.dueDate) {
+        throw new Error('La fecha de inicio no puede ser posterior a la fecha límite');
+      }
 
       // Preparar datos para envío
       const taskData: CreateTaskData | UpdateTaskData = {
@@ -103,7 +117,11 @@ const TaskEditorModal: React.FC<TaskEditorModalProps> = ({
         priority: formData.priority,
         status: formData.status,
         projectId: formData.projectId ? parseInt(formData.projectId) : undefined,
+        startDate: formData.startDate,  // NUEVO: incluir startDate
         dueDate: formData.dueDate || undefined,
+        completedDate: formData.status === 'completada'
+    ? (formData.completedDate || new Date().toISOString().split('T')[0])
+    : undefined, // si no está completada, no mandamos fecha de fin
         assignedTo: formData.assignedTo || undefined,
       };
 
@@ -123,12 +141,21 @@ const TaskEditorModal: React.FC<TaskEditorModalProps> = ({
     }
   };
 
-  const handleChange = (field: string, value: string) => {
-    setFormData(prev => ({
-      ...prev,
-      [field]: value
-    }));
-  };
+const handleChange = (field: string, value: string) => {
+  setFormData(prev => {
+    // Reglas de estado → completedDate
+    if (field === 'status') {
+      const today = new Date().toISOString().split('T')[0];
+      if (value === 'completada' && !prev.completedDate) {
+        return { ...prev, status: value as any, completedDate: today };
+      }
+      if (value !== 'completada') {
+        return { ...prev, status: value as any, completedDate: '' };
+      }
+    }
+    return { ...prev, [field]: value };
+  });
+};
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
@@ -267,19 +294,60 @@ const TaskEditorModal: React.FC<TaskEditorModalProps> = ({
             </div>
           </div>
 
-          {/* Fecha límite */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Fecha límite
-            </label>
-            <input
-              type="date"
-              value={formData.dueDate}
-              onChange={(e) => handleChange('dueDate', e.target.value)}
-              className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-              disabled={loading}
-              min={new Date().toISOString().split('T')[0]} // No permitir fechas pasadas
-            />
+          {/* NUEVO: Fila de fechas - Fecha de inicio y Fecha límite */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* Fecha de inicio */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Fecha de inicio *
+              </label>
+              <input
+                type="date"
+                value={formData.startDate}
+                onChange={(e) => handleChange('startDate', e.target.value)}
+                className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                disabled={loading}
+                required
+              />
+              <p className="text-xs text-gray-500 mt-1">
+                Si no se especifica, se usará la fecha actual
+              </p>
+            </div>
+
+            {/* Fecha límite */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Fecha límite
+              </label>
+              <input
+                type="date"
+                value={formData.dueDate}
+                onChange={(e) => handleChange('dueDate', e.target.value)}
+                className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                disabled={loading}
+                min={formData.startDate || new Date().toISOString().split('T')[0]} // No puede ser anterior a la fecha de inicio
+              />
+              <p className="text-xs text-gray-500 mt-1">
+                Opcional - debe ser posterior a la fecha de inicio
+              </p>
+            </div>
+            {/* Fecha de finalización */}
+  <div>
+    <label className="block text-sm font-medium text-gray-700 mb-2">
+      Fecha de finalización
+    </label>
+    <input
+      type="date"
+      value={formData.completedDate}
+      onChange={(e) => handleChange('completedDate', e.target.value)}
+      className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+      disabled={loading || formData.status !== 'completada'}
+      min={formData.startDate || undefined}
+    />
+    <p className="text-xs text-gray-500 mt-1">
+      Solo editable si la tarea está “completada”.
+    </p>
+  </div>
           </div>
 
           {/* Botones */}

@@ -1,5 +1,6 @@
 package com.portal.ia.controller;
 
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -23,15 +24,17 @@ import org.springframework.web.bind.annotation.RestController;
 import com.portal.ia.entity.Task;
 import com.portal.ia.service.TaskService;
 
-// DTO para recibir datos del frontend
+// DTO para recibir datos del frontend - ACTUALIZADO con startDate
 class TaskCreateRequest {
     private String title;
     private String description;
     private String priority;
     private String status;
+    private String startDate;    // NUEVO CAMPO
     private String dueDate;
     private String assignedTo;
     private Long projectId;
+    private String completedDate;
     
     // Getters y setters
     public String getTitle() { return title; }
@@ -46,6 +49,10 @@ class TaskCreateRequest {
     public String getStatus() { return status; }
     public void setStatus(String status) { this.status = status; }
     
+   
+    public String getStartDate() { return startDate; }
+    public void setStartDate(String startDate) { this.startDate = startDate; }
+    
     public String getDueDate() { return dueDate; }
     public void setDueDate(String dueDate) { this.dueDate = dueDate; }
     
@@ -54,6 +61,10 @@ class TaskCreateRequest {
     
     public Long getProjectId() { return projectId; }
     public void setProjectId(Long projectId) { this.projectId = projectId; }
+    
+    public String getCompletedDate() { return completedDate; }
+    public void setCompletedDate(String completedDate) { this.completedDate = completedDate; }
+
 }
 
 @RestController
@@ -102,17 +113,50 @@ public class TaskController {
     @PostMapping
     public ResponseEntity<?> createTask(@RequestBody TaskCreateRequest request) {
         try {
+            // Validaciones básicas
+            if (request.getTitle() == null || request.getTitle().trim().isEmpty()) {
+                return ResponseEntity.badRequest()
+                    .body(Map.of("error", "El título es obligatorio"));
+            }
+            if (request.getDescription() == null || request.getDescription().trim().isEmpty()) {
+                return ResponseEntity.badRequest()
+                    .body(Map.of("error", "La descripción es obligatoria"));
+            }
+
             // Crear objeto Task a partir del request
             Task task = new Task();
-            task.setTitle(request.getTitle());
-            task.setDescription(request.getDescription());
+            task.setTitle(request.getTitle().trim());
+            task.setDescription(request.getDescription().trim());
             task.setPriority(request.getPriority());
             task.setStatus(request.getStatus());
             task.setAssignedTo(request.getAssignedTo());
             
-            // Manejar fecha si viene
+            
+            if (request.getCompletedDate() != null && !request.getCompletedDate().isEmpty()) {
+                task.setCompletedDate(LocalDate.parse(request.getCompletedDate()));
+            }
+
+            // NUEVO: Manejar startDate
+            if (request.getStartDate() != null && !request.getStartDate().isEmpty()) {
+                LocalDate startDate = LocalDate.parse(request.getStartDate());
+                task.setStartDate(startDate);
+            }
+            // Si no se proporciona startDate, @PrePersist se encargará de usar fecha actual
+            
+            // Manejar dueDate
             if (request.getDueDate() != null && !request.getDueDate().isEmpty()) {
-                task.setDueDate(java.time.LocalDate.parse(request.getDueDate()));
+                LocalDate dueDate = LocalDate.parse(request.getDueDate());
+                
+                // VALIDACIÓN: startDate no puede ser posterior a dueDate
+                LocalDate effectiveStartDate = task.getStartDate() != null ? 
+                    task.getStartDate() : LocalDate.now();
+                
+                if (effectiveStartDate.isAfter(dueDate)) {
+                    return ResponseEntity.badRequest()
+                        .body(Map.of("error", "La fecha de inicio no puede ser posterior a la fecha límite"));
+                }
+                
+                task.setDueDate(dueDate);
             }
 
             // Usar el método que maneja el projectId correctamente
@@ -123,7 +167,7 @@ public class TaskController {
                 .body(Map.of("error", e.getMessage()));
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(Map.of("error", "Error interno del servidor"));
+                .body(Map.of("error", "Error interno del servidor: " + e.getMessage()));
         }
     }
 
@@ -140,9 +184,24 @@ public class TaskController {
             taskData.setStatus(request.getStatus());
             taskData.setAssignedTo(request.getAssignedTo());
             
-            // Manejar fecha si viene
+            // NUEVO: Manejar startDate en actualización
+            if (request.getStartDate() != null && !request.getStartDate().isEmpty()) {
+                taskData.setStartDate(LocalDate.parse(request.getStartDate()));
+            }
+            if (request.getCompletedDate() != null && !request.getCompletedDate().isEmpty()) {
+            	taskData.setCompletedDate(LocalDate.parse(request.getCompletedDate()));
+            }
+
+            // Manejar dueDate
             if (request.getDueDate() != null && !request.getDueDate().isEmpty()) {
-                taskData.setDueDate(java.time.LocalDate.parse(request.getDueDate()));
+                LocalDate dueDate = LocalDate.parse(request.getDueDate());
+                taskData.setDueDate(dueDate);
+                
+                // VALIDACIÓN: Si se está actualizando startDate también, validar
+                if (taskData.getStartDate() != null && taskData.getStartDate().isAfter(dueDate)) {
+                    return ResponseEntity.badRequest()
+                        .body(Map.of("error", "La fecha de inicio no puede ser posterior a la fecha límite"));
+                }
             }
 
             Task updatedTask = taskService.update(id, taskData);
@@ -160,7 +219,7 @@ public class TaskController {
             return ResponseEntity.notFound().build();
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(Map.of("error", "Error interno del servidor"));
+                .body(Map.of("error", "Error interno del servidor: " + e.getMessage()));
         }
     }
 

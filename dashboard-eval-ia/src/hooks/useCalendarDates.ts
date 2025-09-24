@@ -48,25 +48,93 @@ export const useCalendarDates = (currentDate: Date) => {
     return date.toLocaleDateString('es-ES', options);
   };
 
-  const getTasksForDate = (tasks: any[], date: Date) => {
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, "0");
-    const day = String(date.getDate()).padStart(2, "0");
-    const dateString = `${year}-${month}-${day}`;
-    return tasks.filter((task) => task.dueDate === dateString);
+  // FUNCIÓN AUXILIAR: Normalizar fecha a formato YYYY-MM-DD
+  const normalizeDate = (dateInput: string | Date | undefined): string | null => {
+    if (!dateInput) return null;
+    
+    try {
+      if (dateInput instanceof Date) {
+        return formatDateForNote(dateInput);
+      }
+      
+      if (typeof dateInput === 'string') {
+        // Si ya está en formato YYYY-MM-DD
+        if (/^\d{4}-\d{2}-\d{2}$/.test(dateInput)) {
+          return dateInput;
+        }
+        // Si está en formato ISO (con timestamp)
+        if (dateInput.includes('T')) {
+          return formatDateForNote(new Date(dateInput));
+        }
+        // Intentar parsear como fecha
+        const parsedDate = new Date(dateInput);
+        if (!isNaN(parsedDate.getTime())) {
+          return formatDateForNote(parsedDate);
+        }
+      }
+    } catch (error) {
+      console.warn('Error normalizando fecha:', dateInput, error);
+    }
+    
+    return null;
   };
 
-  const getTasksCreatedOnDate = (tasks: any[], date: Date) => {
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, "0");
-    const day = String(date.getDate()).padStart(2, "0");
-    const dateString = `${year}-${month}-${day}`;
-
+  // ACTUALIZADA: Buscar tareas con fecha límite en un día específico
+  const getTasksForDate = (tasks: any[], date: Date) => {
+    const targetDateString = formatDateForNote(date);
+    
     return tasks.filter((task) => {
-      if (!task.createdAt) return false;
-      const createdDate = new Date(task.createdAt).toISOString().split("T")[0];
-      return createdDate === dateString;
+      if (!task.dueDate) return false;
+      const normalizedDueDate = normalizeDate(task.dueDate);
+      return normalizedDueDate === targetDateString;
     });
+  };
+
+  // ACTUALIZADA: Buscar tareas que INICIAN en un día específico (usando startDate con fallback)
+  const getTasksCreatedOnDate = (tasks: any[], date: Date) => {
+    const targetDateString = formatDateForNote(date);
+    
+    return tasks.filter((task) => {
+      // Prioridad: startDate > createdAt > null
+      let taskStartDate: string | null = null;
+      
+      if (task.startDate) {
+        taskStartDate = normalizeDate(task.startDate);
+      } else if (task.createdAt) {
+        taskStartDate = normalizeDate(task.createdAt);
+      }
+      
+      return taskStartDate === targetDateString;
+    });
+  };
+
+  // NUEVA: Obtener fecha efectiva de inicio de una tarea
+  const getEffectiveStartDate = (task: any): string | null => {
+    if (task.startDate) {
+      return normalizeDate(task.startDate);
+    }
+    if (task.createdAt) {
+      return normalizeDate(task.createdAt);
+    }
+    return null;
+  };
+
+  // NUEVA: Verificar si una tarea tiene rango de fechas válido
+  const hasValidDateRange = (task: any): boolean => {
+    const startDate = getEffectiveStartDate(task);
+    const endDate = normalizeDate(task.dueDate);
+    return !!(startDate && endDate);
+  };
+
+  // NUEVA: Verificar si una fecha está en el rango de una tarea
+  const isDateInTaskRange = (date: Date, task: any): boolean => {
+    if (!hasValidDateRange(task)) return false;
+    
+    const dateString = formatDateForNote(date);
+    const startDate = getEffectiveStartDate(task);
+    const endDate = normalizeDate(task.dueDate);
+    
+    return dateString >= startDate! && dateString <= endDate!;
   };
 
   return {
@@ -75,6 +143,12 @@ export const useCalendarDates = (currentDate: Date) => {
     formatDateForNote,
     formatDateForDisplay,
     getTasksForDate,
-    getTasksCreatedOnDate
+    getTasksCreatedOnDate,
+    
+    // Nuevas funciones para manejar startDate
+    normalizeDate,
+    getEffectiveStartDate,
+    hasValidDateRange,
+    isDateInTaskRange
   };
 };
