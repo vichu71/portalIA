@@ -24,7 +24,7 @@ export const useTimelineData = (isActive: boolean, onToastMessage: (message: str
         total: tasksData.length,
         sample: tasksData.slice(0, 2).map((t) => ({
           title: t.title,
-          createdAt: t.createdAt,
+          startDate: t.startDate,
           dueDate: t.dueDate,
         })),
       });
@@ -126,15 +126,23 @@ export const useTimelineCalculations = (
   projectFilter: string,
   viewMode: ViewMode
 ) => {
-  // Filtrar tareas válidas
+  // Filtrar tareas válidas - actualizado para usar startDate
   const validTasks = useMemo(() => {
-    const result = filterValidTasks(tasks, projectFilter);
+    const result = tasks.filter((task) => {
+      const hasValidDates = task.startDate && task.dueDate;
+      const matchesProject =
+        projectFilter === "" ||
+        (projectFilter === "sin-proyecto"
+          ? !task.projectId
+          : task.projectId?.toString() === projectFilter);
+      return hasValidDates && matchesProject;
+    });
 
     console.log("🔍 DEBUG validTasks:", {
       totalTasks: tasks.length,
       validTasks: result.length,
       projectFilter,
-      tasksWithDates: tasks.filter((t) => t.createdAt && t.dueDate).length,
+      tasksWithDates: tasks.filter((t) => t.startDate && t.dueDate).length,
     });
 
     if (result.length > 0) {
@@ -142,7 +150,7 @@ export const useTimelineCalculations = (
         "✅ Primeras tareas válidas:",
         result.slice(0, 3).map((t) => ({
           title: t.title,
-          createdAt: t.createdAt,
+          startDate: t.startDate,
           dueDate: t.dueDate,
         }))
       );
@@ -151,9 +159,23 @@ export const useTimelineCalculations = (
     return result;
   }, [tasks, projectFilter]);
 
-  // Calcular rango de fechas
+  // Calcular rango de fechas - actualizado para usar startDate
   const dateRange = useMemo(() => {
-    return calculateDateRange(validTasks);
+    if (validTasks.length === 0) return { start: new Date(), end: new Date() };
+
+    const dates = validTasks.flatMap((task) => [
+      new Date(task.startDate!),
+      new Date(task.dueDate!),
+    ]);
+
+    const minDate = new Date(Math.min(...dates.map((d) => d.getTime())));
+    const maxDate = new Date(Math.max(...dates.map((d) => d.getTime())));
+
+    // Agregar margen
+    minDate.setDate(minDate.getDate() - 3);
+    maxDate.setDate(maxDate.getDate() + 3);
+
+    return { start: minDate, end: maxDate };
   }, [validTasks]);
 
   // Generar cuadrícula de días

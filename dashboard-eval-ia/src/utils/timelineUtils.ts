@@ -1,14 +1,11 @@
 import { Task, ViewMode, DateRange, TaskBarStyle } from "../components/timeline/types/timeline";
 
 /**
- * Filtra las tareas que tienen fechas válidas y coinciden con el filtro de proyecto
+ * Filtrar tareas que tienen fechas válidas
  */
-export const filterValidTasks = (
-  tasks: Task[],
-  projectFilter: string
-): Task[] => {
+export const filterValidTasks = (tasks: Task[], projectFilter: string): Task[] => {
   return tasks.filter((task) => {
-    const hasValidDates = task.createdAt && task.dueDate;
+    const hasValidDates = task.startDate && task.dueDate;
     const matchesProject =
       projectFilter === "" ||
       (projectFilter === "sin-proyecto"
@@ -19,23 +16,20 @@ export const filterValidTasks = (
 };
 
 /**
- * Calcula el rango de fechas para mostrar en el timeline
+ * Calcular rango de fechas del timeline
  */
 export const calculateDateRange = (tasks: Task[]): DateRange => {
-  if (tasks.length === 0) {
-    const now = new Date();
-    return { start: now, end: now };
-  }
+  if (tasks.length === 0) return { start: new Date(), end: new Date() };
 
   const dates = tasks.flatMap((task) => [
-    new Date(task.createdAt!),
+    new Date(task.startDate!),
     new Date(task.dueDate!),
   ]);
 
   const minDate = new Date(Math.min(...dates.map((d) => d.getTime())));
   const maxDate = new Date(Math.max(...dates.map((d) => d.getTime())));
 
-  // Agregar margen de 3 días
+  // Agregar margen
   minDate.setDate(minDate.getDate() - 3);
   maxDate.setDate(maxDate.getDate() + 3);
 
@@ -43,7 +37,7 @@ export const calculateDateRange = (tasks: Task[]): DateRange => {
 };
 
 /**
- * Genera array de días para la cuadrícula
+ * Generar cuadrícula diaria para el timeline
  */
 export const generateDailyGrid = (dateRange: DateRange): Date[] => {
   const days: Date[] = [];
@@ -58,7 +52,7 @@ export const generateDailyGrid = (dateRange: DateRange): Date[] => {
 };
 
 /**
- * Calcula la posición de un día en la cuadrícula (0-100%)
+ * Calcular posición de un día en el timeline
  */
 export const getDayPosition = (day: Date, dateRange: DateRange): number => {
   const totalDuration = dateRange.end.getTime() - dateRange.start.getTime();
@@ -67,12 +61,13 @@ export const getDayPosition = (day: Date, dateRange: DateRange): number => {
 };
 
 /**
- * Determina si un día debe mostrar etiqueta según el modo de vista
+ * Determinar si un día debe mostrar etiqueta según el modo de vista
  */
 export const shouldShowDayLabel = (day: Date, viewMode: ViewMode, dateRange: DateRange): boolean => {
   if (viewMode === "days") {
     const totalDays = Math.ceil(
-      (dateRange.end.getTime() - dateRange.start.getTime()) / (1000 * 60 * 60 * 24)
+      (dateRange.end.getTime() - dateRange.start.getTime()) /
+        (1000 * 60 * 60 * 24)
     );
 
     if (totalDays <= 7) {
@@ -80,63 +75,16 @@ export const shouldShowDayLabel = (day: Date, viewMode: ViewMode, dateRange: Dat
     } else if (totalDays <= 21) {
       return day.getDate() % 2 === 0;
     } else {
-      return day.getDay() === 1; // Solo lunes
+      return day.getDay() === 1;
     }
   }
-  if (viewMode === "weeks") return day.getDay() === 1; // Lunes
-  if (viewMode === "months") return day.getDate() === 1; // Primer día del mes
+  if (viewMode === "weeks") return day.getDay() === 1;
+  if (viewMode === "months") return day.getDate() === 1;
   return false;
 };
 
 /**
- * Obtiene el factor de escala para las barras según el modo de vista
- */
-export const getScaleFactor = (viewMode: ViewMode): number => {
-  switch (viewMode) {
-    case "days":
-      return 3.0; // Barras 3x más anchas
-    case "months":
-      return 0.3; // Barras 3x más estrechas
-    case "weeks":
-    default:
-      return 1.0; // Tamaño normal
-  }
-};
-
-/**
- * Calcula el estilo (posición y ancho) de la barra de una tarea
- */
-export const getTaskBarStyle = (
-  task: Task,
-  dateRange: DateRange,
-  viewMode: ViewMode
-): TaskBarStyle => {
-  try {
-    const totalDuration = dateRange.end.getTime() - dateRange.start.getTime();
-    
-    const taskStartTime = new Date(task.createdAt!).getTime();
-    const taskEndTime = new Date(task.dueDate!).getTime();
-    const taskDuration = taskEndTime - taskStartTime;
-    
-    // Posición usando el mismo cálculo que getDayPosition()
-    const leftPercent = ((taskStartTime - dateRange.start.getTime()) / totalDuration) * 100;
-    
-    // Ancho escalado según el modo de vista
-    const baseWidthPercent = (taskDuration / totalDuration) * 100;
-    const scaledWidthPercent = baseWidthPercent * getScaleFactor(viewMode);
-    
-    return {
-      left: `${Math.max(0, leftPercent)}%`,
-      width: `${Math.max(2, Math.min(100, scaledWidthPercent))}%`,
-    };
-  } catch (error) {
-    console.error("Error calculando barra:", error);
-    return { left: "0%", width: "20%" };
-  }
-};
-
-/**
- * Formatea una fecha para mostrar en las etiquetas del timeline
+ * Formatear etiqueta de intervalo según el modo de vista
  */
 export const formatIntervalLabel = (date: Date, viewMode: ViewMode): string => {
   if (viewMode === "days") {
@@ -155,7 +103,128 @@ export const formatIntervalLabel = (date: Date, viewMode: ViewMode): string => {
 };
 
 /**
- * Obtiene el color de la prioridad de una tarea (para indicador secundario)
+ * Obtener factor de escala según el modo de vista
+ */
+const getScaleFactor = (viewMode: ViewMode): number => {
+  if (viewMode === "days") return 3.0; // Barras 3x más anchas
+  if (viewMode === "months") return 0.3; // Barras 3x más estrechas
+  return 1.0; // weeks = tamaño normal
+};
+
+/**
+ * Calcular estilo de barra de tarea
+ */
+export const getTaskBarStyle = (
+  task: Task,
+  dateRange: DateRange,
+  viewMode: ViewMode
+): TaskBarStyle => {
+  try {
+    const totalDuration = dateRange.end.getTime() - dateRange.start.getTime();
+    
+    const taskStartTime = new Date(task.startDate!).getTime();
+    const taskEndTime = new Date(task.dueDate!).getTime();
+    const taskDuration = taskEndTime - taskStartTime;
+    
+    // Posición básica
+    const leftPercent = ((taskStartTime - dateRange.start.getTime()) / totalDuration) * 100;
+    
+    // Ancho escalado según el modo de vista
+    const baseWidthPercent = (taskDuration / totalDuration) * 100;
+    const scaledWidthPercent = baseWidthPercent * getScaleFactor(viewMode);
+    
+    return {
+      left: `${Math.max(0, leftPercent)}%`,
+      width: `${Math.max(2, Math.min(100, scaledWidthPercent))}%`,
+    };
+  } catch (error) {
+    console.error("Error calculando barra:", error);
+    return { left: "0%", width: "20%" };
+  }
+};
+
+/**
+ * Verificar si una tarea está asignada
+ * Solo usando las propiedades que realmente existen en el tipo Task
+ */
+const isTaskAssigned = (task: Task): boolean => {
+  // Usar solo task.assignedTo que es la propiedad que realmente existe
+  return !!(task.assignedTo);
+};
+
+/**
+ * NUEVO: Obtener color basado en fecha y asignación
+ */
+export const getTaskStatusColor = (task: Task): string => {
+  const now = new Date();
+  
+  // Si está completada, siempre verde oscuro
+  if (task.status === "completada") {
+    return "bg-green-600"; // Verde más oscuro para completadas
+  }
+  
+  const startDate = new Date(task.startDate!);
+  const dueDate = new Date(task.dueDate!);
+  const isAssigned = isTaskAssigned(task);
+  
+  // 🔴 ROJO: Fuera del rango (atrasada), aunque esté asignada
+  if (now > dueDate) {
+    return "bg-red-500";
+  }
+  
+  // 🔵 AZUL: Antes del rango (aún no ha comenzado)
+  if (now < startDate) {
+    return "bg-blue-500";
+  }
+  
+  // En el rango (entre startDate y dueDate):
+  // 🟢 VERDE: En el rango + asignada
+  if (isAssigned) {
+    return "bg-green-500";
+  }
+  
+  // 🟡 AMARILLO: En el rango + NO asignada
+  return "bg-yellow-500";
+};
+
+/**
+ * NUEVO: Obtener descripción del estado basado en fecha y asignación
+ */
+export const getTaskStatusDescription = (task: Task): string => {
+  const now = new Date();
+  
+  if (task.status === "completada") {
+    return "Completada ✅";
+  }
+  
+  const startDate = new Date(task.startDate!);
+  const dueDate = new Date(task.dueDate!);
+  const isAssigned = isTaskAssigned(task);
+  
+  // Fuera del rango (atrasada)
+  if (now > dueDate) {
+    const daysLate = Math.ceil((now.getTime() - dueDate.getTime()) / (1000 * 60 * 60 * 24));
+    return `Atrasada ${daysLate} día${daysLate > 1 ? 's' : ''} 🚨`;
+  }
+  
+  // Antes del rango
+  if (now < startDate) {
+    const daysToStart = Math.ceil((startDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+    return `Comienza en ${daysToStart} día${daysToStart > 1 ? 's' : ''} 📅`;
+  }
+  
+  // En el rango
+  const daysRemaining = Math.ceil((dueDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+  
+  if (isAssigned) {
+    return `En progreso - ${daysRemaining} día${daysRemaining > 1 ? 's' : ''} restante${daysRemaining > 1 ? 's' : ''} ⏰`;
+  } else {
+    return `Sin asignar - Vence en ${daysRemaining} día${daysRemaining > 1 ? 's' : ''} ⚠️`;
+  }
+};
+
+/**
+ * Obtener color de prioridad (ahora solo para indicadores pequeños)
  */
 export const getPriorityColor = (priority: string): string => {
   switch (priority) {
@@ -171,74 +240,27 @@ export const getPriorityColor = (priority: string): string => {
 };
 
 /**
- * Obtiene el color principal de la barra basado en estado + fechas
- * 🟢 Verde: Completada
- * 🟡 Amarillo: En progreso/pendiente dentro de plazo
- * 🔴 Rojo: NO completada y fecha límite pasada (OVERDUE)
- * 🔵 Azul: Pendiente, fecha inicio futura
- */
-export const getTaskStatusColor = (task: Task): string => {
-  const now = new Date();
-  const startDate = new Date(task.createdAt!);
-  const dueDate = new Date(task.dueDate!);
-  
-  // Si está completada, siempre verde ✅
-  if (task.status === "completada") {
-    return "bg-green-500";
-  }
-  
-  // Si la fecha límite ya pasó y NO está completada = OVERDUE 🚨
-  if (dueDate < now) {
-    return "bg-red-500";
-  }
-  
-  // Si la fecha de inicio es futura = aún no comenzada 🔵
-  if (startDate > now) {
-    return "bg-blue-500";
-  }
-  
-  // Si está en el rango de fechas (en progreso o pendiente) = OK 🟡
-  return "bg-amber-500";
-};
-
-/**
- * Obtiene el texto descriptivo del estado de la tarea
- */
-export const getTaskStatusDescription = (task: Task): string => {
-  const now = new Date();
-  const startDate = new Date(task.createdAt!);
-  const dueDate = new Date(task.dueDate!);
-  
-  if (task.status === "completada") {
-    return "Completada ✅";
-  }
-  
-  if (dueDate < now) {
-    const daysOverdue = Math.ceil((now.getTime() - dueDate.getTime()) / (1000 * 60 * 60 * 24));
-    return `Atrasada ${daysOverdue} día${daysOverdue > 1 ? 's' : ''} 🚨`;
-  }
-  
-  if (startDate > now) {
-    const daysUntilStart = Math.ceil((startDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
-    return `Comienza en ${daysUntilStart} día${daysUntilStart > 1 ? 's' : ''} 📅`;
-  }
-  
-  const daysLeft = Math.ceil((dueDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
-  return `${daysLeft} día${daysLeft > 1 ? 's' : ''} restante${daysLeft > 1 ? 's' : ''} ⏰`;
-};
-
-/**
- * Obtiene la opacidad según el estado de la tarea
+ * Obtener opacidad según el estado
  */
 export const getStatusOpacity = (status: string): string => {
   switch (status) {
     case "completada":
-      return "opacity-60";
-    case "en_progreso":
-      return "opacity-85";
-    case "pendiente":
-      return "opacity-100";
+      return "opacity-80";
     default:
       return "opacity-100";
   }
+};
+
+/**
+ * NUEVO: Obtener información detallada del estado de asignación
+ */
+export const getAssignmentInfo = (task: Task): { isAssigned: boolean; assignedTo: string } => {
+  const isAssigned = isTaskAssigned(task);
+  let assignedTo = "Sin asignar";
+  
+  if (task.assignedTo) {
+    assignedTo = task.assignedTo;
+  }
+  
+  return { isAssigned, assignedTo };
 };
